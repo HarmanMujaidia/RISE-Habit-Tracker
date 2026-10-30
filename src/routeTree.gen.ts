@@ -10,33 +10,73 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as DreamsRouteImport } from './routes/dreams'
+import { Route as HabitsRouteImport } from './routes/habits'
+import { Route as PlansRouteImport } from './routes/plans'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AnalyticsRoute = AnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DreamsRoute = DreamsRouteImport.update({
+  id: '/dreams',
+  path: '/dreams',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HabitsRoute = HabitsRouteImport.update({
+  id: '/habits',
+  path: '/habits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlansRoute = PlansRouteImport.update({
+  id: '/plans',
+  path: '/plans',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/analytics': typeof AnalyticsRoute
+  '/dreams': typeof DreamsRoute
+  '/habits': typeof HabitsRoute
+  '/plans': typeof PlansRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/analytics': typeof AnalyticsRoute
+  '/dreams': typeof DreamsRoute
+  '/habits': typeof HabitsRoute
+  '/plans': typeof PlansRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/analytics': typeof AnalyticsRoute
+  '/dreams': typeof DreamsRoute
+  '/habits': typeof HabitsRoute
+  '/plans': typeof PlansRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/analytics' | '/dreams' | '/habits' | '/plans'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/analytics' | '/dreams' | '/habits' | '/plans'
+  id: '__root__' | '/' | '/analytics' | '/dreams' | '/habits' | '/plans'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AnalyticsRoute: typeof AnalyticsRoute
+  DreamsRoute: typeof DreamsRoute
+  HabitsRoute: typeof HabitsRoute
+  PlansRoute: typeof PlansRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +88,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/analytics': {
+      id: '/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dreams': {
+      id: '/dreams'
+      path: '/dreams'
+      fullPath: '/dreams'
+      preLoaderRoute: typeof DreamsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/habits': {
+      id: '/habits'
+      path: '/habits'
+      fullPath: '/habits'
+      preLoaderRoute: typeof HabitsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plans': {
+      id: '/plans'
+      path: '/plans'
+      fullPath: '/plans'
+      preLoaderRoute: typeof PlansRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AnalyticsRoute: AnalyticsRoute,
+  DreamsRoute: DreamsRoute,
+  HabitsRoute: HabitsRoute,
+  PlansRoute: PlansRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
