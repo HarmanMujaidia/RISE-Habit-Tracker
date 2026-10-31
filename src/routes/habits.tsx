@@ -144,7 +144,7 @@ function MonthCalendar({ habit, onToggle }: { habit: Habit; onToggle: (key: stri
   const [offset, setOffset] = useState(0);
   const month = addMonths(new Date(), offset);
   const days = eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) });
-  const lead = (getDay(days[0]) + 6) % 7;
+  const lead = (getDay(startOfMonth(month)) + 6) % 7;
   const today = new Date();
   return (
     <Panel

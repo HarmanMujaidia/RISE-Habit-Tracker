@@ -163,7 +163,7 @@ function Dashboard() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Panel title="Habit heatmap" className="lg:col-span-2">
-          <Heatmap weeks={20} getValue={(d) => dayCompletion(state, d)} />
+          <Heatmap weeks={32} getValue={(d) => dayCompletion(state, d)} />
           <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
             Less
             {[0, 30, 60, 100].map((v) => (
