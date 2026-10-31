@@ -35,7 +35,7 @@ export interface Dream {
   cover: string;
   milestones: Milestone[];
   achieved: boolean;
-  achievedAt?: string;
+  achievedAt?: string | undefined;
 }
 export interface RiseState {
   habits: Habit[];
@@ -133,7 +133,7 @@ function rng(seed: number) {
   };
 }
 
-export function makeSeed(covers: Record<string, string>): RiseState {
+export function makeSeed(covers: Record<Category, string>): RiseState {
   const today = new Date();
   const r = rng(42);
   const created = dayKey(addDays(today, -120));
@@ -147,17 +147,19 @@ export function makeSeed(covers: Record<string, string>): RiseState {
   const odds: Record<string, number> = { h1: 0.85, h2: 0.72, h3: 0.68, h4: 0.9, h5: 0.6 };
   const logs: RiseState["logs"] = {};
   for (const h of habits) {
-    logs[h.id] = [];
+    const arr: string[] = [];
+    logs[h.id] = arr;
     for (let i = 120; i >= 1; i--) {
       const d = addDays(today, -i);
       if (!isScheduled(h, d)) continue;
       // recent days slightly better = visible streaks
-      const p = i < 12 ? Math.min(0.97, odds[h.id] + 0.2) : odds[h.id];
-      if (r() < p) logs[h.id].push(dayKey(d));
+      const o = odds[h.id] ?? 0.7;
+      const p = i < 12 ? Math.min(0.97, o + 0.2) : o;
+      if (r() < p) arr.push(dayKey(d));
     }
   }
-  logs.h1.push(dayKey(today));
-  logs.h4.push(dayKey(today));
+  logs["h1"]?.push(dayKey(today));
+  logs["h4"]?.push(dayKey(today));
 
   const titles = ["Deep work block", "Reply to emails", "Team sync", "Grocery run", "Plan next week", "Call mom", "Review budget", "Write blog draft", "Stretch session", "Read research paper"];
   const prios: Priority[] = ["low", "medium", "high"];
@@ -167,10 +169,10 @@ export function makeSeed(covers: Record<string, string>): RiseState {
     for (let j = 0; j < n; j++) {
       tasks.push({
         id: `t${i}_${j}`,
-        title: titles[Math.floor(r() * titles.length)],
+        title: titles[Math.floor(r() * titles.length)] ?? "Focus",
         date: dayKey(addDays(today, i)),
         time: `${String(8 + j * 2 + Math.floor(r() * 2)).padStart(2, "0")}:${r() > 0.5 ? "00" : "30"}`,
-        priority: prios[Math.floor(r() * 3)],
+        priority: prios[Math.floor(r() * 3)] ?? "medium",
         done: i < 0 ? r() < 0.78 : i === 0 ? j < 2 : false,
       });
     }

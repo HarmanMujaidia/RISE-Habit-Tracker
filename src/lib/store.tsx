@@ -1,11 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { makeSeed, type RiseState } from "./rise";
+import { makeSeed, type Category, type RiseState } from "./rise";
 import career from "@/assets/dream-career.jpg";
 import health from "@/assets/dream-health.jpg";
 import travel from "@/assets/dream-travel.jpg";
 import finance from "@/assets/dream-finance.jpg";
 
-export const COVERS: Record<string, string> = { career, health, travel, finance, personal: health };
+export const COVERS: Record<Category, string> = { career, health, travel, finance, personal: health };
 
 const KEY = "rise-state-v1";
 
