@@ -14,6 +14,7 @@ import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as DreamsRouteImport } from './routes/dreams'
 import { Route as HabitsRouteImport } from './routes/habits'
 import { Route as PlansRouteImport } from './routes/plans'
+import { Route as SettingsRouteImport } from './routes/settings'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +41,11 @@ const PlansRoute = PlansRouteImport.update({
   path: '/plans',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/dreams': typeof DreamsRoute
   '/habits': typeof HabitsRoute
   '/plans': typeof PlansRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/dreams': typeof DreamsRoute
   '/habits': typeof HabitsRoute
   '/plans': typeof PlansRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,13 +70,21 @@ export interface FileRoutesById {
   '/dreams': typeof DreamsRoute
   '/habits': typeof HabitsRoute
   '/plans': typeof PlansRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/analytics' | '/dreams' | '/habits' | '/plans'
+  fullPaths: '/' | '/analytics' | '/dreams' | '/habits' | '/plans' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/analytics' | '/dreams' | '/habits' | '/plans'
-  id: '__root__' | '/' | '/analytics' | '/dreams' | '/habits' | '/plans'
+  to: '/' | '/analytics' | '/dreams' | '/habits' | '/plans' | '/settings'
+  id:
+    | '__root__'
+    | '/'
+    | '/analytics'
+    | '/dreams'
+    | '/habits'
+    | '/plans'
+    | '/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,6 +93,7 @@ export interface RootRouteChildren {
   DreamsRoute: typeof DreamsRoute
   HabitsRoute: typeof HabitsRoute
   PlansRoute: typeof PlansRoute
+  SettingsRoute: typeof SettingsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -116,6 +133,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlansRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -125,6 +149,7 @@ const rootRouteChildren: RootRouteChildren = {
   DreamsRoute: DreamsRoute,
   HabitsRoute: HabitsRoute,
   PlansRoute: PlansRoute,
+  SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

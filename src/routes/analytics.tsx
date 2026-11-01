@@ -5,12 +5,16 @@ import { Area, AreaChart, Bar as RBar, BarChart, CartesianGrid, Cell, Pie, PieCh
 import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRise } from "@/lib/store";
-import { bestStreak, colorVar, currentStreak, dayCompletion, dayKey, dreamProgress, taskScore } from "@/lib/rise";
+import { earnedBadges, bestStreak, colorVar, currentStreak, dayCompletion, dayKey, dreamProgress, taskScore } from "@/lib/rise";
 import { PageHeader, Panel, tooltipStyle } from "@/components/rise/visuals";
+
+import { EmptyState } from "@/components/rise/EmptyState";
 
 export const Route = createFileRoute("/analytics")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Insights & Achievements — Rise" },
       { name: "description", content: "Charts and badges that show how far you've come." },
       { property: "og:title", content: "Insights & Achievements — Rise" },
@@ -58,19 +62,7 @@ function AnalyticsPage() {
     { name: "In progress", value: state.dreams.length - achieved, fill: "var(--chart-2)" },
   ];
   const allTasks = state.tasks.filter((t) => t.date <= dayKey(today));
-  const tasksDone = allTasks.filter((t) => t.done).length;
-  const perfectDays = Array.from({ length: 120 }, (_, i) => dayCompletion(state, addDays(today, -i))).filter((v) => v === 100).length;
-
-  const badges = [
-    { icon: "🔥", name: "7-day streak", earned: maxBest >= 7, hint: "Keep a habit 7 days in a row" },
-    { icon: "🌋", name: "30-day streak", earned: maxBest >= 30, hint: "Keep a habit 30 days in a row" },
-    { icon: "🌱", name: "First habit", earned: state.habits.length > 0, hint: "Create a habit" },
-    { icon: "✨", name: "Perfect day", earned: perfectDays > 0, hint: "Complete every habit in a day" },
-    { icon: "💎", name: "10 perfect days", earned: perfectDays >= 10, hint: "10 days of all habits done" },
-    { icon: "✅", name: "50 tasks done", earned: tasksDone >= 50, hint: "Finish 50 planned tasks" },
-    { icon: "🏆", name: "First dream achieved", earned: achieved >= 1, hint: "Mark a dream achieved" },
-    { icon: "🚀", name: "Dreamer", earned: state.dreams.length >= 5, hint: "Add 5 dreams" },
-  ];
+  const badges = earnedBadges(state, today);
 
   return (
     <div className="space-y-6">
@@ -88,8 +80,11 @@ function AnalyticsPage() {
         }
       />
 
+      {!state.habits.length && !state.tasks.length && !state.dreams.length && <EmptyState message="No activity yet. Your insights will grow with your progress." label="Add habit" to="/habits" />}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Habits over time">
+          {!state.habits.length && <EmptyState message="No habits yet." label="Add habit" to="/habits" />}
           <div className="h-60">
             <ResponsiveContainer>
               <AreaChart data={series}>
@@ -109,12 +104,13 @@ function AnalyticsPage() {
           </div>
         </Panel>
         <Panel title="Plans completed">
+          {!state.tasks.length && <EmptyState message="No plans yet." label="Add plan" to="/plans" />}
           <div className="h-60">
             <ResponsiveContainer>
               <BarChart data={series}>
                 <CartesianGrid vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} interval={range === "month" ? 4 : 0} />
-                <YAxis hide />
+                <YAxis hide domain={[0, (max: number) => Math.max(1, max)]} />
                 <Tooltip {...tooltipStyle} formatter={(v) => [v, "Tasks done"]} />
                 <RBar dataKey="plans" fill="var(--chart-2)" radius={[6, 6, 6, 6]} maxBarSize={28} />
               </BarChart>
@@ -122,7 +118,8 @@ function AnalyticsPage() {
           </div>
         </Panel>
         <Panel title="Dreams achieved">
-          <div className="flex items-center gap-6">
+          {!state.dreams.length && <EmptyState message="No dreams yet." label="Add dream" to="/dreams" />}
+          <div className="flex flex-wrap items-center gap-6">
             <div className="h-48 w-48 shrink-0">
               <ResponsiveContainer>
                 <PieChart>
@@ -141,6 +138,7 @@ function AnalyticsPage() {
           </div>
         </Panel>
         <Panel title="Best streaks">
+          {!streaks.length && <p className="text-sm text-muted-foreground">No streaks yet. Complete a habit to begin.</p>}
           <div className="space-y-3">
             {streaks.sort((a, b) => b.best - a.best).map((s) => (
               <div key={s.name}>
@@ -156,12 +154,13 @@ function AnalyticsPage() {
       </div>
 
       <Panel title="Badges">
+        {!badges.length && <p className="text-sm text-muted-foreground">No badges earned yet. Every small step counts.</p>}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {badges.map((b, i) => (
             <motion.div key={b.name} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.04 }} className={`flex flex-col items-center gap-2 rounded-2xl border p-4 text-center ${b.earned ? "bg-accent" : "opacity-50 grayscale"}`}>
               <span className="text-3xl">{b.icon}</span>
               <span className="text-sm font-medium">{b.name}</span>
-              <span className="text-[11px] text-muted-foreground">{b.earned ? "Earned" : b.hint}</span>
+              <span className="text-[11px] text-muted-foreground">Earned</span>
             </motion.div>
           ))}
         </div>
