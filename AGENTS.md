@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep progress calculations and badge eligibility in pure helpers in `src/lib/rise.ts` so all pages share the same rules and tests.
+- Version browser entry storage separately from legacy demo storage; migrate by removing the legacy key once and never seed entries.
