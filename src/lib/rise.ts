@@ -67,7 +67,8 @@ export function currentStreak(h: Habit, logs: RiseState["logs"], today = new Dat
   let d = today;
   // today not yet done doesn't break the streak
   if (isScheduled(h, d) && !isDone(logs, h.id, dayKey(d))) d = addDays(d, -1);
-  for (let i = 0; i < 730; i++) {
+  const start = parseISO(h.createdAt);
+  while (dayKey(d) >= dayKey(start)) {
     if (isScheduled(h, d)) {
       if (isDone(logs, h.id, dayKey(d))) s++;
       else break;
@@ -98,7 +99,7 @@ export function completionRate(h: Habit, logs: RiseState["logs"], days = 30, tod
   let done = 0;
   for (let i = 0; i < days; i++) {
     const d = addDays(today, -i);
-    if (d < parseISO(h.createdAt) || !isScheduled(h, d)) continue;
+    if (dayKey(d) < h.createdAt || !isScheduled(h, d)) continue;
     sched++;
     if (isDone(logs, h.id, dayKey(d))) done++;
   }
@@ -108,7 +109,7 @@ export function completionRate(h: Habit, logs: RiseState["logs"], days = 30, tod
 /** Percent of scheduled habits completed on a given day. null if none scheduled. */
 export function dayCompletion(state: RiseState, d: Date) {
   const k = dayKey(d);
-  const sched = state.habits.filter((h) => isScheduled(h, d) && parseISO(h.createdAt) <= d);
+  const sched = state.habits.filter((h) => isScheduled(h, d) && h.createdAt <= k);
   if (!sched.length) return null;
   const done = sched.filter((h) => isDone(state.logs, h.id, k)).length;
   return Math.round((done / sched.length) * 100);
@@ -125,65 +126,24 @@ export function taskScore(tasks: Task[]) {
   return Math.round((tasks.filter((t) => t.done).length / tasks.length) * 100);
 }
 
-/* ---------- Seed (deterministic so charts look full) ---------- */
-function rng(seed: number) {
-  return () => {
-    seed = (seed * 1664525 + 1013904223) % 4294967296;
-    return seed / 4294967296;
-  };
+export function emptyState(): RiseState {
+  return { habits: [], logs: {}, tasks: [], dreams: [] };
 }
 
-export function makeSeed(covers: Record<Category, string>): RiseState {
-  const today = new Date();
-  const r = rng(42);
-  const created = dayKey(addDays(today, -120));
-  const habits: Habit[] = [
-    { id: "h1", name: "Morning meditation", icon: "🧘", color: "chart-1", frequency: "daily", createdAt: created },
-    { id: "h2", name: "Read 20 pages", icon: "📚", color: "chart-2", frequency: "daily", createdAt: created },
-    { id: "h3", name: "Workout", icon: "🏃", color: "chart-4", frequency: "weekdays", createdAt: created },
-    { id: "h4", name: "Drink 2L water", icon: "💧", color: "chart-3", frequency: "daily", createdAt: created },
-    { id: "h5", name: "Journal", icon: "✍️", color: "chart-5", frequency: "daily", createdAt: created },
-  ];
-  const odds: Record<string, number> = { h1: 0.85, h2: 0.72, h3: 0.68, h4: 0.9, h5: 0.6 };
-  const logs: RiseState["logs"] = {};
-  for (const h of habits) {
-    const arr: string[] = [];
-    logs[h.id] = arr;
-    for (let i = 120; i >= 1; i--) {
-      const d = addDays(today, -i);
-      if (!isScheduled(h, d)) continue;
-      // recent days slightly better = visible streaks
-      const o = odds[h.id] ?? 0.7;
-      const p = i < 12 ? Math.min(0.97, o + 0.2) : o;
-      if (r() < p) arr.push(dayKey(d));
-    }
-  }
-  logs["h1"]?.push(dayKey(today));
-  logs["h4"]?.push(dayKey(today));
-
-  const titles = ["Deep work block", "Reply to emails", "Team sync", "Grocery run", "Plan next week", "Call mom", "Review budget", "Write blog draft", "Stretch session", "Read research paper"];
-  const prios: Priority[] = ["low", "medium", "high"];
-  const tasks: Task[] = [];
-  for (let i = -30; i <= 2; i++) {
-    const n = 3 + Math.floor(r() * 3);
-    for (let j = 0; j < n; j++) {
-      tasks.push({
-        id: `t${i}_${j}`,
-        title: titles[Math.floor(r() * titles.length)] ?? "Focus",
-        date: dayKey(addDays(today, i)),
-        time: `${String(8 + j * 2 + Math.floor(r() * 2)).padStart(2, "0")}:${r() > 0.5 ? "00" : "30"}`,
-        priority: prios[Math.floor(r() * 3)] ?? "medium",
-        done: i < 0 ? r() < 0.78 : i === 0 ? j < 2 : false,
-      });
-    }
-  }
-
-  const ms = (arr: string[], done: number): Milestone[] => arr.map((t, i) => ({ id: uid(), title: t, done: i < done }));
-  const dreams: Dream[] = [
-    { id: "d1", title: "Lead a product team", description: "Grow into a role where I shape products people love.", category: "career", targetDate: dayKey(addDays(today, 300)), cover: covers.career, milestones: ms(["Finish leadership course", "Mentor two juniors", "Ship a flagship feature", "Get promoted"], 2), achieved: false },
-    { id: "d2", title: "Run a half marathon", description: "21km, steady and strong.", category: "health", targetDate: dayKey(addDays(today, 120)), cover: covers.health, milestones: ms(["Run 5k", "Run 10k", "Run 15k", "Race day"], 3), achieved: false },
-    { id: "d3", title: "Spring in Kyoto", description: "Walk the old streets during cherry blossom season.", category: "travel", targetDate: dayKey(addDays(today, 160)), cover: covers.travel, milestones: ms(["Save travel fund", "Book flights", "Plan itinerary"], 1), achieved: false },
-    { id: "d4", title: "Six-month safety net", description: "An emergency fund that lets me breathe.", category: "finance", targetDate: dayKey(addDays(today, -20)), cover: covers.finance, milestones: ms(["Track spending", "Automate savings", "Reach 6 months"], 3), achieved: true, achievedAt: dayKey(addDays(today, -20)) },
-  ];
-  return { habits, logs, tasks, dreams };
+export function earnedBadges(state: RiseState, today = new Date()) {
+  const maxBest = Math.max(0, ...state.habits.map((h) => bestStreak(h, state.logs, today)));
+  const dates = new Set(Object.values(state.logs).flat().filter((k) => k <= dayKey(today)));
+  const perfectDays = [...dates].filter((k) => dayCompletion(state, parseISO(k)) === 100).length;
+  const tasksDone = state.tasks.filter((t) => t.done && t.date <= dayKey(today)).length;
+  const achieved = state.dreams.filter((d) => d.achieved).length;
+  return [
+    { icon: "🔥", name: "7-day streak", earned: maxBest >= 7 },
+    { icon: "🌋", name: "30-day streak", earned: maxBest >= 30 },
+    { icon: "🌱", name: "First habit", earned: state.habits.length > 0 },
+    { icon: "✨", name: "Perfect day", earned: perfectDays > 0 },
+    { icon: "💎", name: "10 perfect days", earned: perfectDays >= 10 },
+    { icon: "✅", name: "50 tasks done", earned: tasksDone >= 50 },
+    { icon: "🏆", name: "First dream achieved", earned: achieved >= 1 },
+    { icon: "🚀", name: "Dreamer", earned: state.dreams.length >= 5 },
+  ].filter((b) => b.earned);
 }
