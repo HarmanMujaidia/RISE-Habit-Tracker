@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { BarChart3, CalendarCheck, Home, Moon, Sparkles, Sun, Target } from "lucide-react";
+import { BarChart3, CalendarCheck, Home, Moon, Sparkles, Sun, Target, Settings } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 const NAV = [
@@ -8,6 +8,7 @@ const NAV = [
   { to: "/plans", label: "Plans", icon: Target },
   { to: "/dreams", label: "Dreams", icon: Sparkles },
   { to: "/analytics", label: "Insights", icon: BarChart3 },
+  { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 function ThemeToggle() {

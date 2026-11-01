@@ -11,9 +11,13 @@ import { useRise } from "@/lib/store";
 import { bestStreak, colorVar, completionRate, currentStreak, dayKey, HABIT_COLORS, isDone, isScheduled, uid, type Frequency, type Habit } from "@/lib/rise";
 import { PageHeader, Panel, ProgressRing } from "@/components/rise/visuals";
 
+import { EmptyState } from "@/components/rise/EmptyState";
+
 export const Route = createFileRoute("/habits")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Habits — Rise" },
       { name: "description", content: "Build daily habits with streaks, completion rates and calendars." },
       { property: "og:title", content: "Habits — Rise" },
@@ -126,7 +130,7 @@ function HabitsPage() {
               );
             })}
           </AnimatePresence>
-          {!state.habits.length && <p className="text-muted-foreground">No habits yet — add your first one.</p>}
+          {!state.habits.length && <EmptyState message="No habits yet. Add your first habit to start your journey." label="Add habit" onClick={() => { setEditing(null); setOpen(true); }} />}
         </div>
 
         <div className="lg:col-span-2">
@@ -163,7 +167,7 @@ function MonthCalendar({ habit, onToggle }: { habit: Habit; onToggle: (key: stri
         {days.map((d) => {
           const k = dayKey(d);
           const done = isDone(state.logs, habit.id, k);
-          const future = d > today;
+          const future = d > today || k < habit.createdAt;
           const sched = isScheduled(habit, d);
           return (
             <motion.button
@@ -210,7 +214,7 @@ function HabitDialog({ open, onOpenChange, initial, onSave }: { open: boolean; o
           <DialogTitle className="font-serif text-2xl">{initial ? "Edit habit" : "New habit"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <Input placeholder="e.g. Morning walk" value={h.name} onChange={(e) => setH({ ...h, name: e.target.value })} />
+          <Input placeholder="Habit name" value={h.name} onChange={(e) => setH({ ...h, name: e.target.value })} />
           <div className="flex flex-wrap gap-2">
             {ICONS.map((i) => (
               <button key={i} onClick={() => setH({ ...h, icon: i })} className={`h-10 w-10 rounded-xl text-lg transition ${h.icon === i ? "bg-accent ring-2 ring-primary" : "bg-muted"}`}>{i}</button>

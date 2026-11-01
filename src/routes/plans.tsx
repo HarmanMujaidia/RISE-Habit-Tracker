@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { addDays, format, isToday, parseISO, startOfWeek } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Check, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,9 +11,13 @@ import { useRise } from "@/lib/store";
 import { dayKey, taskScore, uid, type Priority, type Task } from "@/lib/rise";
 import { Bar, PageHeader, Panel, ProgressRing } from "@/components/rise/visuals";
 
+import { EmptyState } from "@/components/rise/EmptyState";
+
 export const Route = createFileRoute("/plans")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Daily Plans — Rise" },
       { name: "description", content: "Plan your day with timed, prioritized tasks and a productivity score." },
       { property: "og:title", content: "Daily Plans — Rise" },
@@ -29,6 +33,7 @@ function PlansPage() {
   const { state, update } = useRise();
   const [view, setView] = useState<"day" | "week">("day");
   const [date, setDate] = useState(() => new Date());
+  const taskInput = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
   const [time, setTime] = useState("09:00");
   const [prio, setPrio] = useState<Priority>("medium");
@@ -83,7 +88,7 @@ function PlansPage() {
           <div className="space-y-4 lg:col-span-2">
             <Panel>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Input placeholder="Add a task…" value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} className="flex-1" />
+                <Input ref={taskInput} placeholder="Task title" value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} className="flex-1" />
                 <div className="flex gap-2">
                   <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="w-28" />
                   <Select value={prio} onValueChange={(v) => setPrio(v as Priority)}>
@@ -115,7 +120,7 @@ function PlansPage() {
                   </motion.div>
                 ))}
               </AnimatePresence>
-              {!dayTasks.length && <p className="py-8 text-center text-muted-foreground">Nothing planned. A blank page is an invitation.</p>}
+              {!dayTasks.length && <EmptyState message="No plans yet. Add your first task for this day." label="Add plan" onClick={() => taskInput.current?.focus()} />}
             </div>
           </div>
           <Panel title="Productivity">

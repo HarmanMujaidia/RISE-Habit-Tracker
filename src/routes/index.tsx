@@ -2,14 +2,18 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { addDays, format, startOfWeek } from "date-fns";
 import { motion } from "framer-motion";
 import { Bar as RBar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Check, Flame, Sparkles, Target, TrendingUp } from "lucide-react";
+import { Check, Flame, Sparkles, TrendingUp } from "lucide-react";
 import { useRise } from "@/lib/store";
-import { colorVar, currentStreak, dayCompletion, dayKey, dreamProgress, isDone, isScheduled, taskScore } from "@/lib/rise";
+import { colorVar, currentStreak, dayCompletion, dayKey, dreamProgress, isDone, isScheduled, taskScore, weeklyScore } from "@/lib/rise";
 import { Heatmap, Panel, ProgressRing, tooltipStyle } from "@/components/rise/visuals";
+
+import { EmptyState } from "@/components/rise/EmptyState";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Today — Rise" },
       { name: "description", content: "Your daily overview of habits, plans and dreams." },
       { property: "og:title", content: "Today — Rise" },
@@ -36,7 +40,7 @@ function Dashboard() {
   const hour = today.getHours();
   const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
-  const todayHabits = state.habits.filter((h) => isScheduled(h, today));
+  const todayHabits = state.habits.filter((h) => h.createdAt <= tk && isScheduled(h, today));
   const todayPct = dayCompletion(state, today) ?? 0;
   const streak = Math.max(0, ...state.habits.map((h) => currentStreak(h, state.logs)));
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
@@ -44,8 +48,7 @@ function Dashboard() {
     const d = addDays(weekStart, i);
     return { day: format(d, "EEE"), value: d > today ? 0 : dayCompletion(state, d) ?? 0 };
   });
-  const elapsed = week.slice(0, Math.min(7, Math.floor((today.getTime() - weekStart.getTime()) / 864e5) + 1));
-  const weekly = Math.round(elapsed.reduce((a, b) => a + b.value, 0) / elapsed.length);
+  const weekly = weeklyScore(state, today);
   const month = Array.from({ length: 30 }, (_, i) => {
     const d = addDays(today, i - 29);
     return { day: format(d, "MMM d"), value: dayCompletion(state, d) ?? 0 };
@@ -92,6 +95,7 @@ function Dashboard() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Panel title="Today" className="lg:col-span-1 lg:row-span-2">
           <div className="space-y-2">
+            {!todayHabits.length && <EmptyState message={state.habits.length ? "No habits scheduled for today." : "No habits yet. Add your first habit to start your journey."} label="Add habit" to="/habits" />}
             {todayHabits.map((h) => {
               const done = isDone(state.logs, h.id, tk);
               return (
@@ -124,15 +128,12 @@ function Dashboard() {
                 <span className={`text-sm ${t.done ? "text-muted-foreground line-through" : ""}`}>{t.title}</span>
               </button>
             ))}
-            {!todayTasks.length && (
-              <Link to="/plans" className="text-sm text-primary">
-                Plan your day →
-              </Link>
-            )}
+            {!todayTasks.length && <EmptyState message="No plans yet. Make space for your first task." label="Add plan" to="/plans" />}
           </div>
         </Panel>
 
         <Panel title="This week" className="lg:col-span-2">
+          {!state.habits.length && <EmptyState message="Your weekly progress starts with your first habit." label="Add habit" to="/habits" />}
           <div className="h-52">
             <ResponsiveContainer>
               <BarChart data={week}>
@@ -147,6 +148,7 @@ function Dashboard() {
         </Panel>
 
         <Panel title="30-day consistency" className="lg:col-span-2">
+          {!Object.values(state.logs).some((l) => l.length) && <p className="mb-3 text-sm text-muted-foreground">No completions yet.</p>}
           <div className="h-52">
             <ResponsiveContainer>
               <LineChart data={month}>
@@ -181,11 +183,7 @@ function Dashboard() {
               </div>
             ))}
           </div>
-          {!state.dreams.length && (
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Target className="h-4 w-4" /> Add your first dream
-            </p>
-          )}
+          {!state.dreams.length && <EmptyState message="No dreams yet. Start with something meaningful to you." label="Add dream" to="/dreams" />}
         </Panel>
       </div>
     </div>

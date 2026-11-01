@@ -1,13 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { makeSeed, type Category, type RiseState } from "./rise";
-import career from "@/assets/dream-career.jpg";
-import health from "@/assets/dream-health.jpg";
-import travel from "@/assets/dream-travel.jpg";
-import finance from "@/assets/dream-finance.jpg";
-
-export const COVERS: Record<Category, string> = { career, health, travel, finance, personal: health };
-
-const KEY = "rise-state-v1";
+import { emptyState, type RiseState } from "./rise";
+import { loadEntries, saveEntries } from "./rise-storage";
 
 interface Ctx {
   state: RiseState;
@@ -20,20 +13,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<RiseState | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      setState(raw ? JSON.parse(raw) : makeSeed(COVERS));
-    } catch {
-      setState(makeSeed(COVERS));
-    }
+    setState(loadEntries(localStorage));
   }, []);
 
   useEffect(() => {
-    if (state) localStorage.setItem(KEY, JSON.stringify(state));
+    if (state) saveEntries(localStorage, state);
   }, [state]);
 
   const update = useCallback((fn: (s: RiseState) => RiseState) => setState((s) => (s ? fn(s) : s)), []);
-  const reset = useCallback(() => setState(makeSeed(COVERS)), []);
+  const reset = useCallback(() => setState(() => { const fresh = emptyState(); saveEntries(localStorage, fresh); return fresh; }), []);
 
   if (!state)
     return (

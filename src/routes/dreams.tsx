@@ -8,13 +8,17 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { COVERS, useRise } from "@/lib/store";
+import { useRise } from "@/lib/store";
 import { CATEGORIES, dayKey, dreamProgress, uid, type Category, type Dream } from "@/lib/rise";
 import { Bar, Celebration, PageHeader } from "@/components/rise/visuals";
+
+import { EmptyState } from "@/components/rise/EmptyState";
 
 export const Route = createFileRoute("/dreams")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Dreams & Goals — Rise" },
       { name: "description", content: "A vision board for your dreams, broken into milestones." },
       { property: "og:title", content: "Dreams & Goals — Rise" },
@@ -57,10 +61,12 @@ function DreamsPage() {
         }
       />
 
+      {!state.dreams.length && <EmptyState message="No dreams yet. Add your first dream and make it your own." label="Add dream" onClick={() => setOpen(true)} />}
+
       <div className={board ? "columns-1 gap-4 sm:columns-2 lg:columns-3 [&>*]:mb-4" : "space-y-3"}>
         {state.dreams.map((d, i) => {
           const p = dreamProgress(d);
-          const days = differenceInCalendarDays(parseISO(d.targetDate), new Date());
+          const days = d.targetDate ? differenceInCalendarDays(parseISO(d.targetDate), new Date()) : null;
           return (
             <motion.button
               key={d.id}
@@ -72,7 +78,7 @@ function DreamsPage() {
               className={`surface group block w-full break-inside-avoid overflow-hidden text-left ${board ? "" : "flex items-center gap-4"}`}
             >
               <div className={`relative overflow-hidden ${board ? (i % 3 === 0 ? "h-64" : "h-44") : "h-24 w-28 shrink-0"}`}>
-                <img src={d.cover || COVERS[d.category]} alt={d.title} loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
+                {d.cover ? <img src={d.cover} alt={d.title} loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /> : <div className="flex h-full items-center justify-center bg-muted"><Trophy className="h-10 w-10 text-muted-foreground" /></div>}
                 {d.achieved && (
                   <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-card/90 px-2.5 py-1 text-xs font-medium backdrop-blur">
                     <Trophy className="h-3 w-3 text-primary" /> {board && "Achieved"}
@@ -82,7 +88,7 @@ function DreamsPage() {
               <div className="flex-1 p-4">
                 <div className="mb-1 flex items-center justify-between text-[11px] uppercase tracking-wider">
                   <span style={{ color: CAT_COLOR[d.category] }}>{d.category}</span>
-                  <span className="text-muted-foreground">{d.achieved ? format(parseISO(d.achievedAt ?? d.targetDate), "MMM yyyy") : days >= 0 ? `${days}d left` : "overdue"}</span>
+                  <span className="text-muted-foreground">{d.achieved ? format(parseISO(d.achievedAt ?? d.targetDate), "MMM yyyy") : days == null ? "No target date" : days >= 0 ? `${days}d left` : "overdue"}</span>
                 </div>
                 <div className="font-serif text-lg">{d.title}</div>
                 {board && d.description && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{d.description}</p>}
@@ -99,7 +105,7 @@ function DreamsPage() {
       <Dialog open={!!current} onOpenChange={(o) => !o && setDetail(null)}>
         {current && (
           <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl p-0">
-            <img src={current.cover || COVERS[current.category]} alt="" className="h-48 w-full object-cover" />
+            {current.cover && <img src={current.cover} alt="" className="h-48 w-full object-cover" />}
             <div className="space-y-4 p-6 pt-2">
               <DialogHeader>
                 <DialogTitle className="font-serif text-2xl">{current.title}</DialogTitle>
@@ -164,7 +170,7 @@ function NewDream({ open, onOpenChange, onSave }: { open: boolean; onOpenChange:
       title: title.trim(),
       description: desc.trim(),
       category: cat,
-      targetDate: date || dayKey(new Date(Date.now() + 180 * 864e5)),
+      targetDate: date,
       cover: cover.trim(),
       milestones: ms.split("\n").map((s) => s.trim()).filter(Boolean).map((t) => ({ id: uid(), title: t, done: false })),
       achieved: false,
