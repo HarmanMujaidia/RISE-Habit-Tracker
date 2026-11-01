@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Bar as RBar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Check, Flame, Sparkles, TrendingUp } from "lucide-react";
 import { useRise } from "@/lib/store";
-import { colorVar, currentStreak, dayCompletion, dayKey, dreamProgress, isDone, isScheduled, taskScore } from "@/lib/rise";
+import { colorVar, currentStreak, dayCompletion, dayKey, dreamProgress, isDone, isScheduled, taskScore, weeklyScore } from "@/lib/rise";
 import { Heatmap, Panel, ProgressRing, tooltipStyle } from "@/components/rise/visuals";
 
 import { EmptyState } from "@/components/rise/EmptyState";
@@ -40,7 +40,7 @@ function Dashboard() {
   const hour = today.getHours();
   const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
-  const todayHabits = state.habits.filter((h) => isScheduled(h, today));
+  const todayHabits = state.habits.filter((h) => h.createdAt <= tk && isScheduled(h, today));
   const todayPct = dayCompletion(state, today) ?? 0;
   const streak = Math.max(0, ...state.habits.map((h) => currentStreak(h, state.logs)));
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
@@ -48,8 +48,7 @@ function Dashboard() {
     const d = addDays(weekStart, i);
     return { day: format(d, "EEE"), value: d > today ? 0 : dayCompletion(state, d) ?? 0 };
   });
-  const elapsed = week.slice(0, Math.min(7, Math.floor((today.getTime() - weekStart.getTime()) / 864e5) + 1));
-  const weekly = Math.round(elapsed.reduce((a, b) => a + b.value, 0) / elapsed.length);
+  const weekly = weeklyScore(state, today);
   const month = Array.from({ length: 30 }, (_, i) => {
     const d = addDays(today, i - 29);
     return { day: format(d, "MMM d"), value: dayCompletion(state, d) ?? 0 };

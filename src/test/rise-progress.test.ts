@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestStreak, completionRate, currentStreak, dayCompletion, dreamProgress, earnedBadges, emptyState, taskScore, type Habit } from "@/lib/rise";
+import { bestStreak, completionRate, currentStreak, dayCompletion, dreamProgress, earnedBadges, emptyState, taskScore, weeklyScore, type Habit } from "@/lib/rise";
 import { ENTRY_KEY, LEGACY_KEY, loadEntries, saveEntries } from "@/lib/rise-storage";
 
 const today = new Date(2026, 10, 6, 12);
@@ -16,6 +16,11 @@ describe("Real progress only", () => {
   it("starts a streak only on completion", () => {
     expect(currentStreak(habit, {}, today)).toBe(0);
     expect(currentStreak(habit, { [habit.id]: ["2026-11-06"] }, today)).toBe(1);
+  });
+  it("starts weekly score at zero and counts only applicable days", () => {
+    expect(weeklyScore(emptyState(), today)).toBe(0);
+    const h = { ...habit, createdAt: "2026-11-06" };
+    expect(weeklyScore({ ...emptyState(), habits: [h], logs: { [h.id]: ["2026-11-06"] } }, today)).toBe(100);
   });
   it("breaks a streak when yesterday was missed", () => {
     expect(currentStreak(habit, { [habit.id]: ["2026-11-03", "2026-11-04"] }, today)).toBe(0);

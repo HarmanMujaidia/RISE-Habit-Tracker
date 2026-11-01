@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { addDays, format, parseISO } from "date-fns";
+import { addDays, addMonths, eachDayOfInterval, endOfMonth, format, parseISO, startOfMonth } from "date-fns";
 import { motion } from "framer-motion";
 import { Area, AreaChart, Bar as RBar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useState } from "react";
@@ -35,8 +35,9 @@ function AnalyticsPage() {
   const buckets =
     range === "year"
       ? Array.from({ length: 12 }, (_, i) => {
-          const end = addDays(today, -(11 - i) * 30);
-          return { label: format(end, "MMM"), days: Array.from({ length: 30 }, (_, j) => addDays(end, -j)) };
+          const month = addMonths(today, i - 11);
+          const end = i === 11 ? today : endOfMonth(month);
+          return { label: format(month, "MMM"), days: eachDayOfInterval({ start: startOfMonth(month), end }) };
         })
       : Array.from({ length: range === "week" ? 7 : 30 }, (_, i) => {
           const d = addDays(today, i - (range === "week" ? 6 : 29));

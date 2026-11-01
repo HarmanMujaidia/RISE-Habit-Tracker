@@ -1,4 +1,4 @@
-import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
+import { addDays, differenceInCalendarDays, format, parseISO, startOfWeek } from "date-fns";
 
 export type Frequency = "daily" | "weekdays" | "weekends";
 export type HabitColor = "chart-1" | "chart-2" | "chart-3" | "chart-4" | "chart-5";
@@ -124,6 +124,12 @@ export function dreamProgress(d: Dream) {
 export function taskScore(tasks: Task[]) {
   if (!tasks.length) return 0;
   return Math.round((tasks.filter((t) => t.done).length / tasks.length) * 100);
+}
+
+export function weeklyScore(state: RiseState, today = new Date()) {
+  const start = startOfWeek(today, { weekStartsOn: 1 });
+  const values = Array.from({ length: differenceInCalendarDays(today, start) + 1 }, (_, i) => dayCompletion(state, addDays(start, i))).filter((v): v is number => v !== null);
+  return values.length ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : 0;
 }
 
 export function emptyState(): RiseState {
