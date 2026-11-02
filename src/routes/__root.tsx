@@ -15,6 +15,8 @@ import { AppShell } from "@/components/rise/AppShell";
 import { MotionConfig } from "framer-motion";
 import { LoadingSkeleton } from "@/components/rise/LoadingSkeleton";
 import { StoreProvider } from "@/lib/store";
+import { AuthProvider } from "@/lib/auth";
+import { AuthGate } from "@/components/rise/AuthScreen";
 
 function NotFoundComponent() {
   return (
@@ -84,6 +86,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: "A calm personal growth tracker for habits, daily plans and dreams." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "theme-color", content: "#0f1b3d" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "Rise" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -96,6 +102,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
       { rel: "icon", href: "/favicon.ico", sizes: "any" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
   shellComponent: RootShell,
@@ -125,11 +132,15 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <MotionConfig reducedMotion="user" transition={{ duration: 0.22, ease: "easeOut" }}>
-        <StoreProvider>
-          <AppShell>
-            <Outlet />
-          </AppShell>
-        </StoreProvider>
+        <AuthProvider>
+          <AuthGate>
+            <StoreProvider>
+              <AppShell>
+                <Outlet />
+              </AppShell>
+            </StoreProvider>
+          </AuthGate>
+        </AuthProvider>
       </MotionConfig>
     </QueryClientProvider>
   );
