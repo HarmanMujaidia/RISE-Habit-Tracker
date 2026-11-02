@@ -13,16 +13,21 @@ const schema = z.object({
   logs: z.record(z.array(date)),
 });
 
+/** Checks data from storage or the cloud. Returns null when it is not valid. */
+export function parseState(raw: unknown): RiseState | null {
+  const result = schema.safeParse(raw);
+  if (!result.success) return null;
+  const value = result.data;
+  const ids = new Set(value.habits.map((h) => h.id));
+  return { ...value, logs: Object.fromEntries(Object.entries(value.logs).filter(([id]) => ids.has(id)).map(([id, days]) => [id, [...new Set(days)]])) };
+}
+
 export function loadEntries(storage: Pick<Storage, "getItem" | "removeItem">): RiseState {
   try {
     storage.removeItem(LEGACY_KEY);
     const raw = storage.getItem(ENTRY_KEY);
     if (!raw) return emptyState();
-    const result = schema.safeParse(JSON.parse(raw));
-    if (!result.success) return emptyState();
-    const value = result.data;
-    const ids = new Set(value.habits.map((h) => h.id));
-    return { ...value, logs: Object.fromEntries(Object.entries(value.logs).filter(([id]) => ids.has(id)).map(([id, days]) => [id, [...new Set(days)]])) };
+    return parseState(JSON.parse(raw)) ?? emptyState();
   } catch {
     return emptyState();
   }
