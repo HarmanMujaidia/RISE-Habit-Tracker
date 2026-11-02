@@ -166,7 +166,6 @@
   :focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
   p, h1, h2, h3, [role="dialog"] { overflow-wrap: anywhere; }
   [role="dialog"] > * { min-width: 0; }
-  .recharts-wrapper { max-width: 100%; }
 }
 .surface { min-width: 0; transition: box-shadow 180ms ease; }
 @media (hover: hover) { .surface:hover { box-shadow: var(--shadow-lift-v); } }

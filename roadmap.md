@@ -7,4 +7,4 @@
 # Stability and smoothness
 - [x] Polish fast, reduced-motion-safe transitions and skeleton loading.
 - [x] Harden local dates, saved entries, inputs and cross-page progress.
-- [ ] Verify controls, themes and layouts across screen sizes; run regression tests.
+- [x] Verify controls, themes and layouts across screen sizes; run regression tests.
