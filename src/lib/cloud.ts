@@ -111,7 +111,8 @@ function clearSession() {
 
 export function signInWithGoogle() {
   const redirect = encodeURIComponent(window.location.origin);
-  window.location.assign(`${BASE}/auth/v1/authorize?provider=google&redirect_to=${redirect}`);
+  // A browser redirect cannot send headers, so the project key goes in the link.
+  window.location.assign(`${BASE}/auth/v1/authorize?provider=google&redirect_to=${redirect}&apikey=${encodeURIComponent(KEY)}`);
 }
 
 export async function signInWithPassword(email: string, password: string): Promise<Session> {
