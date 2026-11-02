@@ -5,6 +5,6 @@
 - [x] Add confirmed reset in Settings and verify add/complete/reset flows.
 
 # Stability and smoothness
-- [ ] Polish fast, reduced-motion-safe transitions and skeleton loading.
-- [ ] Harden local dates, saved entries, inputs and cross-page progress.
-- [ ] Verify controls, themes and layouts across screen sizes; run regression tests.
+- [x] Polish fast, reduced-motion-safe transitions and skeleton loading.
+- [x] Harden local dates, saved entries, inputs and cross-page progress.
+- [x] Verify controls, themes and layouts across screen sizes; run regression tests.

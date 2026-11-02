@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { addDays, addMonths, eachDayOfInterval, endOfMonth, format, parseISO, startOfMonth } from "date-fns";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Area, AreaChart, Bar as RBar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -27,9 +27,9 @@ export const Route = createFileRoute("/analytics")({
 type Range = "week" | "month" | "year";
 
 function AnalyticsPage() {
-  const { state } = useRise();
+  const { state, today } = useRise();
+  const reduced = useReducedMotion();
   const [range, setRange] = useState<Range>("month");
-  const today = new Date();
 
   // buckets: week=7 days, month=30 days, year=12 months
   const buckets =
@@ -55,7 +55,7 @@ function AnalyticsPage() {
     };
   });
 
-  const streaks = state.habits.map((h) => ({ name: h.name, icon: h.icon, best: bestStreak(h, state.logs), current: currentStreak(h, state.logs), color: colorVar(h.color) }));
+  const streaks = state.habits.map((h) => ({ id: h.id, name: h.name, icon: h.icon, best: bestStreak(h, state.logs), current: currentStreak(h, state.logs), color: colorVar(h.color) }));
   const maxBest = Math.max(0, ...streaks.map((s) => s.best));
   const achieved = state.dreams.filter((d) => d.achieved).length;
   const dreamPie = [
@@ -99,7 +99,7 @@ function AnalyticsPage() {
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} interval={range === "month" ? 4 : 0} />
                 <YAxis hide domain={[0, 100]} />
                 <Tooltip {...tooltipStyle} cursor={{ stroke: "var(--border)" }} formatter={(v) => [`${v}%`, "Habits"]} />
-                <Area type="monotone" dataKey="habits" stroke="var(--chart-1)" strokeWidth={2.5} fill="url(#hg)" />
+                <Area isAnimationActive={!reduced} animationDuration={240} animationBegin={0} type="monotone" dataKey="habits" stroke="var(--chart-1)" strokeWidth={2.5} fill="url(#hg)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -113,7 +113,7 @@ function AnalyticsPage() {
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} interval={range === "month" ? 4 : 0} />
                 <YAxis hide domain={[0, (max: number) => Math.max(1, max)]} />
                 <Tooltip {...tooltipStyle} formatter={(v) => [v, "Tasks done"]} />
-                <RBar dataKey="plans" fill="var(--chart-2)" radius={[6, 6, 6, 6]} maxBarSize={28} />
+                <RBar isAnimationActive={!reduced} animationDuration={240} animationBegin={0} dataKey="plans" fill="var(--chart-2)" radius={[6, 6, 6, 6]} maxBarSize={28} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -124,7 +124,7 @@ function AnalyticsPage() {
             <div className="h-48 w-48 shrink-0">
               <ResponsiveContainer>
                 <PieChart>
-                  <Pie data={dreamPie} dataKey="value" innerRadius={55} outerRadius={80} paddingAngle={4} cornerRadius={8} stroke="none">
+                  <Pie isAnimationActive={!reduced} animationDuration={240} animationBegin={0} data={dreamPie} dataKey="value" innerRadius={55} outerRadius={80} paddingAngle={4} cornerRadius={8} stroke="none">
                     {dreamPie.map((d) => <Cell key={d.name} fill={d.fill} />)}
                   </Pie>
                   <Tooltip {...tooltipStyle} />
@@ -142,11 +142,11 @@ function AnalyticsPage() {
           {!streaks.length && <p className="text-sm text-muted-foreground">No streaks yet. Complete a habit to begin.</p>}
           <div className="space-y-3">
             {streaks.sort((a, b) => b.best - a.best).map((s) => (
-              <div key={s.name}>
-                <div className="mb-1 flex justify-between text-sm"><span>{s.icon} {s.name}</span><span className="tabular-nums text-muted-foreground">{s.current} / {s.best}d</span></div>
+              <div key={s.id}>
+                <div className="mb-1 flex justify-between text-sm"><span className="min-w-0 flex-1 break-words">{s.icon} {s.name}</span><span className="tabular-nums text-muted-foreground">{s.current} / {s.best}d</span></div>
                 <div className="relative h-2.5 overflow-hidden rounded-full bg-muted">
-                  <motion.div className="absolute inset-y-0 left-0 rounded-full opacity-35" style={{ background: s.color }} initial={{ width: 0 }} animate={{ width: `${maxBest ? (s.best / maxBest) * 100 : 0}%` }} transition={{ duration: 0.8 }} />
-                  <motion.div className="absolute inset-y-0 left-0 rounded-full" style={{ background: s.color }} initial={{ width: 0 }} animate={{ width: `${maxBest ? (s.current / maxBest) * 100 : 0}%` }} transition={{ duration: 0.8, delay: 0.2 }} />
+                  <motion.div className="absolute inset-y-0 left-0 rounded-full opacity-35" style={{ background: s.color }} initial={{ width: 0 }} animate={{ width: `${maxBest ? (s.best / maxBest) * 100 : 0}%` }} transition={{ duration: 0.24 }} />
+                  <motion.div className="absolute inset-y-0 left-0 rounded-full" style={{ background: s.color }} initial={{ width: 0 }} animate={{ width: `${maxBest ? (s.current / maxBest) * 100 : 0}%` }} transition={{ duration: 0.24 }} />
                 </div>
               </div>
             ))}
@@ -158,7 +158,7 @@ function AnalyticsPage() {
         {!badges.length && <p className="text-sm text-muted-foreground">No badges earned yet. Every small step counts.</p>}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {badges.map((b, i) => (
-            <motion.div key={b.name} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.04 }} className={`flex flex-col items-center gap-2 rounded-2xl border p-4 text-center ${b.earned ? "bg-accent" : "opacity-50 grayscale"}`}>
+            <motion.div key={b.name} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.22 }} className={`flex flex-col items-center gap-2 rounded-2xl border p-4 text-center ${b.earned ? "bg-accent" : "opacity-50 grayscale"}`}>
               <span className="text-3xl">{b.icon}</span>
               <span className="text-sm font-medium">{b.name}</span>
               <span className="text-[11px] text-muted-foreground">Earned</span>
