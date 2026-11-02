@@ -47,12 +47,13 @@ interface TokenBody {
 
 async function request(path: string, init: RequestInit & { token?: string } = {}) {
   const { token, headers, ...rest } = init;
+  // Newer publishable keys are not tokens, so only a signed-in person's token goes in Authorization.
   return fetch(`${BASE}${path}`, {
     ...rest,
     headers: {
       apikey: KEY,
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token ?? KEY}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(headers as Record<string, string> | undefined),
     },
   });
