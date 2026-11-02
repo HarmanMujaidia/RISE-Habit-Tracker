@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestStreak, completionRate, currentStreak, dayCompletion, dreamProgress, earnedBadges, emptyState, taskScore, weeklyScore, type Habit } from "@/lib/rise";
+import { bestStreak, completionRate, currentStreak, dayCompletion, dreamProgress, earnedBadges, emptyState, taskScore, weeklyScore, millisecondsUntilMidnight, nameError, dayKey, type Habit } from "@/lib/rise";
 import { ENTRY_KEY, LEGACY_KEY, loadEntries, saveEntries } from "@/lib/rise-storage";
 
 const today = new Date(2026, 10, 6, 12);
@@ -57,6 +57,15 @@ describe("Real progress only", () => {
 });
 
 describe("Browser entry migration", () => {
+  it("rejects damaged nested entries without crashing", () => {
+    localStorage.setItem(ENTRY_KEY, JSON.stringify({ ...emptyState(), dreams: [{ id: "bad", title: "Damaged" }] }));
+    expect(loadEntries(localStorage)).toEqual(emptyState());
+  });
+  it("handles unavailable storage without crashing", () => {
+    const blocked = { removeItem: () => { throw new Error("blocked"); }, getItem: () => { throw new Error("blocked"); }, setItem: () => { throw new Error("blocked"); } };
+    expect(loadEntries(blocked)).toEqual(emptyState());
+    expect(saveEntries(blocked, emptyState())).toBe(false);
+  });
   it("discards legacy demo storage and starts empty", () => {
     localStorage.clear();
     localStorage.setItem(LEGACY_KEY, JSON.stringify({ habits: [{ id: "h1" }] }));
@@ -78,5 +87,39 @@ describe("Browser entry migration", () => {
     expect(loadEntries(localStorage)).toEqual(emptyState());
     localStorage.setItem(ENTRY_KEY, "{}");
     expect(loadEntries(localStorage)).toEqual(emptyState());
+  });
+});
+
+describe("Stability rules", () => {
+  it("keeps today in local time at midnight", () => {
+    const before = new Date(2026, 10, 1, 23, 59, 59);
+    expect(dayKey(before)).toBe("2026-11-01");
+    expect(millisecondsUntilMidnight(before)).toBe(1000);
+    expect(dayKey(new Date(before.getTime() + 1000))).toBe("2026-11-02");
+  });
+  it("retains yesterday's streak at midnight then breaks after a missed day", () => {
+    const logs = { [habit.id]: ["2026-11-01"] };
+    expect(currentStreak(habit, logs, new Date(2026, 10, 2, 0))).toBe(1);
+    expect(currentStreak(habit, logs, new Date(2026, 10, 3, 0))).toBe(0);
+  });
+  it("rejects empty input", () => { expect(nameError("   ", [])).not.toBe(""); });
+  it("rejects duplicate names ignoring case and surrounding space", () => { expect(nameError("  walk  ", ["Walk"])).not.toBe(""); });
+  it("accepts distinct names and bounds very long input", () => {
+    expect(nameError("Read", ["Walk"])).toBe("");
+    expect(nameError("x".repeat(121), [])).not.toBe("");
+  });
+  it("recalculates all habit totals after editing the schedule", () => {
+    const s = { ...emptyState(), habits: [habit], logs: { [habit.id]: ["2026-11-07"] } };
+    const saturday = new Date(2026, 10, 7, 12);
+    expect(dayCompletion(s, saturday)).toBe(100);
+    s.habits = [{ ...habit, frequency: "weekdays" }];
+    expect(dayCompletion(s, saturday)).toBeNull();
+    expect(earnedBadges(s, saturday).some((b) => b.name === "Perfect day")).toBe(false);
+  });
+  it("removes deleted habit progress from charts and badges", () => {
+    const s = { ...emptyState(), logs: { removed: ["2026-11-06"] } };
+    expect(dayCompletion(s, today)).toBeNull();
+    expect(weeklyScore(s, today)).toBe(0);
+    expect(earnedBadges(s, today)).toEqual([]);
   });
 });
