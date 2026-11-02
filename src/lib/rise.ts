@@ -51,6 +51,20 @@ export const colorVar = (c: HabitColor) => `var(--${c})`;
 export const dayKey = (d: Date) => format(d, "yyyy-MM-dd");
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
+export function millisecondsUntilMidnight(now: Date) {
+  const next = new Date(now);
+  next.setHours(24, 0, 0, 0);
+  return next.getTime() - now.getTime();
+}
+
+export function nameError(name: string, existing: string[]) {
+  const trimmed = name.trim();
+  if (!trimmed) return "Enter a name.";
+  if (trimmed.length > 120) return "Use 120 characters or fewer.";
+  if (existing.some((n) => n.trim().toLocaleLowerCase() === trimmed.toLocaleLowerCase())) return "That name already exists.";
+  return "";
+}
+
 export function isScheduled(h: Habit, d: Date) {
   const wd = d.getDay();
   if (h.frequency === "weekdays") return wd >= 1 && wd <= 5;
