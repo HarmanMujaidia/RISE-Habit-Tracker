@@ -42,7 +42,7 @@ function AuthScreen() {
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-xl text-primary-foreground">↑</span>
+          <img src="/rise-icon.svg" alt="" width={48} height={48} className="mb-4 h-12 w-12 rounded-2xl" />
           <h1 className="font-serif text-3xl font-semibold">Rise</h1>
           <p className="mt-2 text-sm text-muted-foreground">Sign in to keep your habits, plans and dreams in sync on every device.</p>
         </div>

@@ -50,7 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r bg-sidebar px-4 py-6 md:flex">
         <Link to="/" className="mb-10 flex items-center gap-2 px-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground">↑</span>
+          <img src="/rise-icon.svg" alt="" width={32} height={32} className="h-8 w-8 rounded-xl" />
           <span className="font-serif text-2xl font-semibold">Rise</span>
         </Link>
         <nav className="flex flex-1 flex-col gap-1">
@@ -73,7 +73,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-background/85 px-5 py-3 backdrop-blur md:hidden">
-        <span className="font-serif text-xl font-semibold">Rise</span>
+        <span className="flex items-center gap-2">
+          <img src="/rise-icon.svg" alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
+          <span className="font-serif text-xl font-semibold">Rise</span>
+        </span>
         <ThemeToggle />
       </header>
 

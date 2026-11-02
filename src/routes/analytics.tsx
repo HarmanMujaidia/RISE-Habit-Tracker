@@ -55,7 +55,7 @@ function AnalyticsPage() {
     };
   });
 
-  const streaks = state.habits.map((h) => ({ id: h.id, name: h.name, icon: h.icon, best: bestStreak(h, state.logs), current: currentStreak(h, state.logs), color: colorVar(h.color) }));
+  const streaks = state.habits.map((h) => ({ id: h.id, name: h.name, icon: h.icon, best: bestStreak(h, state.logs, today), current: currentStreak(h, state.logs, today), color: colorVar(h.color) }));
   const maxBest = Math.max(0, ...streaks.map((s) => s.best));
   const achieved = state.dreams.filter((d) => d.achieved).length;
   const dreamPie = [
