@@ -4,7 +4,11 @@ import { parseState } from "./rise-storage";
 // Talks to Supabase through its plain REST API, so the app needs no extra packages.
 // Both values are public by design (the anon key is protected by row level security).
 const env = import.meta.env as Record<string, string | undefined>;
-const BASE = (env["VITE_SUPABASE_URL"] ?? "").trim().replace(/\/+$/, "");
+// Only the site address matters, so a pasted ".../rest/v1/" or trailing slash is harmless.
+function originOf(value: string) {
+  try { return new URL(value.trim()).origin; } catch { return ""; }
+}
+const BASE = originOf(env["VITE_SUPABASE_URL"] ?? "");
 const KEY = (env["VITE_SUPABASE_ANON_KEY"] ?? "").trim();
 
 /** False when the Supabase settings are missing: the app then works on this device only. */
