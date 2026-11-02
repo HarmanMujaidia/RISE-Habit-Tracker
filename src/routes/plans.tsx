@@ -41,7 +41,8 @@ function PlansPage() {
   useEffect(() => {
     const next = dayKey(today);
     if (next !== previousToday.current) {
-      setDate((d) => dayKey(d) === previousToday.current ? today : d);
+      const previous = previousToday.current;
+      setDate((d) => dayKey(d) === previous ? today : d);
       previousToday.current = next;
     }
   }, [today]);

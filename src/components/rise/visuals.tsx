@@ -130,7 +130,7 @@ export function Celebration({ show }: { show: boolean }) {
 
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
   return (
-    <div className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 sm:mb-8 sm:flex sm:justify-between">
+    <div className="mb-6 grid grid-cols-1 items-end gap-3 sm:mb-8 sm:flex sm:justify-between">
       <div className="min-w-0">
         <h1 className="break-words text-2xl font-semibold sm:text-4xl">{title}</h1>
         {subtitle && <p className="mt-1 text-muted-foreground">{subtitle}</p>}
