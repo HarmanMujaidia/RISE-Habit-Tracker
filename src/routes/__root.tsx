@@ -13,6 +13,8 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppShell } from "@/components/rise/AppShell";
+import { MotionConfig } from "framer-motion";
+import { LoadingSkeleton } from "@/components/rise/LoadingSkeleton";
 import { StoreProvider } from "@/lib/store";
 
 function NotFoundComponent() {
@@ -102,6 +104,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
+  pendingComponent: LoadingSkeleton,
 });
 
 function RootShell({ children }: { children: ReactNode }) {
@@ -123,11 +126,13 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppShell>
+      <MotionConfig reducedMotion="user" transition={{ duration: 0.22, ease: "easeOut" }}>
         <StoreProvider>
-          <Outlet />
+          <AppShell>
+            <Outlet />
+          </AppShell>
         </StoreProvider>
-      </AppShell>
+      </MotionConfig>
     </QueryClientProvider>
   );
 }

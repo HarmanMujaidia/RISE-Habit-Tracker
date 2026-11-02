@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { addDays, format, startOfWeek } from "date-fns";
 import type { ReactNode } from "react";
 
@@ -17,6 +17,8 @@ export function ProgressRing({
   label?: ReactNode;
   sub?: ReactNode;
 }) {
+  const reduced = useReducedMotion();
+  const safeValue = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   return (
@@ -32,13 +34,13 @@ export function ProgressRing({
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}
-          initial={{ strokeDashoffset: c }}
-          animate={{ strokeDashoffset: c - (Math.min(100, value) / 100) * c }}
-          transition={{ duration: 1, ease: "easeOut" }}
+          initial={reduced ? false : { strokeDashoffset: c }}
+          animate={{ strokeDashoffset: c - (safeValue / 100) * c }}
+          transition={{ duration: reduced ? 0 : 0.24, ease: "easeOut" }}
         />
       </svg>
       <div className="absolute flex flex-col items-center leading-tight">
-        <span className="font-serif text-lg font-semibold">{label ?? `${value}%`}</span>
+        <span className="font-serif text-lg font-semibold">{label ?? `${Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0}%`}</span>
         {sub && <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{sub}</span>}
       </div>
     </div>
@@ -46,14 +48,15 @@ export function ProgressRing({
 }
 
 export function Bar({ value, color = "var(--primary)", className = "h-2" }: { value: number; color?: string; className?: string }) {
+  const reduced = useReducedMotion();
   return (
     <div className={`w-full overflow-hidden rounded-full bg-muted ${className}`}>
       <motion.div
         className="h-full rounded-full"
         style={{ background: color }}
-        initial={{ width: 0 }}
-        animate={{ width: `${value}%` }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
+        initial={reduced ? false : { width: 0 }}
+        animate={{ width: `${Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0}%` }}
+        transition={{ duration: reduced ? 0 : 0.24, ease: "easeOut" }}
       />
     </div>
   );
@@ -66,7 +69,7 @@ export function Heatmap({ weeks = 18, getValue, color = "var(--primary)" }: { we
   const cols = Array.from({ length: weeks }, (_, w) => Array.from({ length: 7 }, (_, d) => addDays(start, w * 7 + d)));
   return (
     <div className="overflow-x-auto pb-1">
-      <div className="flex gap-[3px]">
+      <div className="grid gap-[3px]" style={{ gridTemplateColumns: `repeat(${weeks}, minmax(0, 1fr))` }}>
         {cols.map((col, i) => (
           <div key={i} className="flex flex-col gap-[3px]">
             {col.map((d) => {
@@ -77,7 +80,7 @@ export function Heatmap({ weeks = 18, getValue, color = "var(--primary)" }: { we
                 <div
                   key={d.toISOString()}
                   title={`${format(d, "MMM d")}: ${v ?? "–"}%`}
-                  className="h-3 w-3 rounded-[3px] sm:h-3.5 sm:w-3.5"
+                  className="aspect-square w-full rounded-[2px]"
                   style={{ background: bg, opacity: future ? 0.3 : 1 }}
                 />
               );
@@ -90,12 +93,13 @@ export function Heatmap({ weeks = 18, getValue, color = "var(--primary)" }: { we
 }
 
 export function Celebration({ show }: { show: boolean }) {
+  const reduced = useReducedMotion();
   const colors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
   return (
     <AnimatePresence>
       {show && (
         <motion.div className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center" initial={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          {Array.from({ length: 40 }).map((_, i) => {
+          {Array.from({ length: reduced ? 0 : 40 }).map((_, i) => {
             const a = (i / 40) * Math.PI * 2;
             const dist = 160 + (i % 5) * 50;
             return (
@@ -105,7 +109,7 @@ export function Celebration({ show }: { show: boolean }) {
                 style={{ background: colors[i % 5] }}
                 initial={{ x: 0, y: 0, scale: 0, rotate: 0 }}
                 animate={{ x: Math.cos(a) * dist, y: Math.sin(a) * dist + 80, scale: 1, rotate: 360, opacity: [1, 1, 0] }}
-                transition={{ duration: 1.6, ease: "easeOut" }}
+                transition={{ duration: 0.24, ease: "easeOut" }}
               />
             );
           })}
@@ -126,9 +130,9 @@ export function Celebration({ show }: { show: boolean }) {
 
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 sm:mb-8">
-      <div>
-        <h1 className="text-3xl font-semibold sm:text-4xl">{title}</h1>
+    <div className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 sm:mb-8 sm:flex sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="break-words text-2xl font-semibold sm:text-4xl">{title}</h1>
         {subtitle && <p className="mt-1 text-muted-foreground">{subtitle}</p>}
       </div>
       {action}
@@ -141,12 +145,12 @@ export function Panel({ title, children, className = "", action }: { title?: str
     <motion.section
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className={`surface p-5 sm:p-6 ${className}`}
+      transition={{ duration: 0.22 }}
+      className={`surface min-w-0 p-5 sm:p-6 ${className}`}
     >
       {(title || action) && (
-        <div className="mb-4 flex items-center justify-between gap-2">
-          {title && <h3 className="text-lg font-medium">{title}</h3>}
+        <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+          {title && <h3 className="min-w-0 break-words text-lg font-medium">{title}</h3>}
           {action}
         </div>
       )}

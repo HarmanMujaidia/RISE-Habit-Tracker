@@ -1,6 +1,9 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { BarChart3, CalendarCheck, Home, Moon, Sparkles, Sun, Target, Settings } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+
+import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
 
 const NAV = [
   { to: "/", label: "Today", icon: Home },
@@ -11,31 +14,38 @@ const NAV = [
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
+function safeTheme() { try { return localStorage.getItem("rise-theme"); } catch { return "light"; } }
+
 function ThemeToggle() {
   const [dark, setDark] = useState(false);
   useEffect(() => {
-    const d = localStorage.getItem("rise-theme") === "dark";
+    const d = safeTheme() === "dark";
     setDark(d);
     document.documentElement.classList.toggle("dark", d);
+    const sync = () => setDark(document.documentElement.classList.contains("dark"));
+    window.addEventListener("rise-theme-change", sync);
+    return () => window.removeEventListener("rise-theme-change", sync);
   }, []);
   const toggle = () => {
-    const d = !dark;
+    const d = !document.documentElement.classList.contains("dark");
     setDark(d);
     document.documentElement.classList.toggle("dark", d);
-    localStorage.setItem("rise-theme", d ? "dark" : "light");
+    try { localStorage.setItem("rise-theme", d ? "dark" : "light"); } catch { /* Theme still works without storage. */ }
+    window.dispatchEvent(new Event("rise-theme-change"));
   };
   return (
-    <button
+    <Button variant="ghost" size="icon"
       onClick={toggle}
       aria-label="Toggle theme"
       className="inline-flex h-9 w-9 items-center justify-center rounded-full border bg-card text-muted-foreground transition hover:text-foreground"
     >
       {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-    </button>
+    </Button>
   );
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const pathname = useLocation({ select: (location) => location.pathname });
   return (
     <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r bg-sidebar px-4 py-6 md:flex">
@@ -68,7 +78,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       <main className="px-4 pb-28 pt-6 sm:px-6 md:ml-60 md:px-10 md:pb-12 md:pt-10">
-        <div className="mx-auto max-w-6xl">{children}</div>
+        <div className="mx-auto min-w-0 max-w-6xl">
+          <motion.div key={pathname} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>{children}</motion.div>
+        </div>
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t bg-card/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur md:hidden">

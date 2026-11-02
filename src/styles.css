@@ -14,6 +14,8 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  --color-overlay: var(--overlay);
+  --color-chart-ink: var(--chart-ink);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -53,6 +55,8 @@
 }
 
 :root {
+  --overlay: oklch(0 0 0 / 65%);
+  --chart-ink: oklch(0.2 0.03 262);
   --radius: 1rem;
   --background: oklch(0.985 0.004 95);
   --foreground: oklch(0.24 0.045 262);
@@ -143,7 +147,7 @@
   }
   h1, h2, h3 {
     font-family: var(--font-serif);
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
   }
 }
 
@@ -152,4 +156,21 @@
   border: 1px solid var(--color-border);
   border-radius: calc(var(--radius) + 4px);
   box-shadow: var(--shadow-soft-v);
+}
+
+@layer base {
+  html { overflow-x: clip; }
+  body { min-width: 0; }
+  button { transition-duration: 150ms; }
+  button:not(:disabled):active { transform: scale(0.98); }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+  p, h1, h2, h3, [role="dialog"] { overflow-wrap: anywhere; }
+  [role="dialog"] > * { min-width: 0; }
+  .recharts-wrapper { max-width: 100%; }
+}
+.surface { min-width: 0; transition: box-shadow 180ms ease; }
+@media (hover: hover) { .surface:hover { box-shadow: var(--shadow-lift-v); } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  button:not(:disabled):active { transform: none; }
 }
