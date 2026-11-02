@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { addDays, format, startOfWeek } from "date-fns";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Bar as RBar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Check, Flame, Sparkles, TrendingUp } from "lucide-react";
 import { useRise } from "@/lib/store";
@@ -34,8 +34,8 @@ const LINES = [
 ];
 
 function Dashboard() {
-  const { state, update } = useRise();
-  const today = new Date();
+  const { state, update, today } = useRise();
+  const reduced = useReducedMotion();
   const tk = dayKey(today);
   const hour = today.getHours();
   const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -81,7 +81,7 @@ function Dashboard() {
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {stats.map((s, i) => (
-          <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }} className="surface flex flex-col justify-between gap-3 p-4 sm:p-5">
+          <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }} className="surface flex flex-col justify-between gap-3 p-4 sm:p-5">
             <div className="flex items-center justify-between text-xs uppercase tracking-wider text-muted-foreground">
               {s.label}
               <s.icon className="h-4 w-4" />
@@ -102,14 +102,14 @@ function Dashboard() {
                 <button key={h.id} onClick={() => toggleHabit(h.id)} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-muted">
                   <motion.span
                     whileTap={{ scale: 0.8 }}
-                    animate={done ? { scale: [1, 1.2, 1] } : {}}
+                    animate={done && !reduced ? { scale: [1, 1.12, 1] } : { scale: 1 }}
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2"
                     style={{ borderColor: colorVar(h.color), background: done ? colorVar(h.color) : "transparent" }}
                   >
-                    {done && <Check className="h-4 w-4 text-primary-foreground" />}
+                    {done && <Check className="h-4 w-4 text-chart-ink" />}
                   </motion.span>
                   <span className="text-lg">{h.icon}</span>
-                  <span className={`text-sm ${done ? "text-muted-foreground line-through" : ""}`}>{h.name}</span>
+                  <span className={`min-w-0 flex-1 break-words text-sm ${done ? "text-muted-foreground line-through" : ""}`}>{h.name}</span>
                 </button>
               );
             })}
@@ -124,8 +124,8 @@ function Dashboard() {
                 <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 ${t.done ? "border-primary bg-primary" : "border-border"}`}>
                   {t.done && <Check className="h-3 w-3 text-primary-foreground" />}
                 </span>
-                <span className="w-11 text-xs tabular-nums text-muted-foreground">{t.time}</span>
-                <span className={`text-sm ${t.done ? "text-muted-foreground line-through" : ""}`}>{t.title}</span>
+                <span className="shrink-0 w-11 text-xs tabular-nums text-muted-foreground">{t.time}</span>
+                <span className={`min-w-0 flex-1 break-words text-sm ${t.done ? "text-muted-foreground line-through" : ""}`}>{t.title}</span>
               </button>
             ))}
             {!todayTasks.length && <EmptyState message="No plans yet. Make space for your first task." label="Add plan" to="/plans" />}
@@ -141,7 +141,7 @@ function Dashboard() {
                 <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
                 <YAxis hide domain={[0, 100]} />
                 <Tooltip {...tooltipStyle} formatter={(v) => [`${v}%`, "Completed"]} />
-                <RBar dataKey="value" fill="var(--chart-1)" radius={[8, 8, 8, 8]} maxBarSize={36} />
+                <RBar isAnimationActive={!reduced} animationDuration={240} animationBegin={0} dataKey="value" fill="var(--chart-1)" radius={[8, 8, 8, 8]} maxBarSize={36} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -156,7 +156,7 @@ function Dashboard() {
                 <XAxis dataKey="day" tickLine={false} axisLine={false} interval={6} tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} />
                 <YAxis hide domain={[0, 100]} />
                 <Tooltip {...tooltipStyle} cursor={{ stroke: "var(--border)" }} formatter={(v) => [`${v}%`, "Completed"]} />
-                <Line type="monotone" dataKey="value" stroke="var(--chart-2)" strokeWidth={2.5} dot={false} />
+                <Line isAnimationActive={!reduced} animationDuration={240} animationBegin={0} type="monotone" dataKey="value" stroke="var(--chart-2)" strokeWidth={2.5} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>

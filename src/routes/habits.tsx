@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRise } from "@/lib/store";
-import { bestStreak, colorVar, completionRate, currentStreak, dayKey, HABIT_COLORS, isDone, isScheduled, uid, type Frequency, type Habit } from "@/lib/rise";
+import { bestStreak, colorVar, completionRate, currentStreak, dayKey, nameError, HABIT_COLORS, isDone, isScheduled, uid, type Frequency, type Habit } from "@/lib/rise";
 import { PageHeader, Panel, ProgressRing } from "@/components/rise/visuals";
 
 import { EmptyState } from "@/components/rise/EmptyState";
@@ -30,11 +30,10 @@ export const Route = createFileRoute("/habits")({
 const ICONS = ["🧘", "📚", "🏃", "💧", "✍️", "🥗", "😴", "🎸", "🌿", "💻", "🙏", "🚶"];
 
 function HabitsPage() {
-  const { state, update } = useRise();
+  const { state, update, today } = useRise();
   const [editing, setEditing] = useState<Habit | null>(null);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(state.habits[0]?.id ?? null);
-  const today = new Date();
   const tk = dayKey(today);
 
   const toggle = (id: string, key = tk) =>
@@ -85,28 +84,29 @@ function HabitsPage() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, x: -20 }}
+                  role="button" tabIndex={0} aria-label={`View ${h.name}`} onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setSelected(h.id); } }}
                   onClick={() => setSelected(h.id)}
-                  className={`surface flex cursor-pointer items-center gap-4 p-4 transition ${sel?.id === h.id ? "ring-2 ring-primary/40" : ""}`}
+                  className={`surface flex cursor-pointer items-center gap-2 p-3 sm:gap-4 sm:p-4 transition ${sel?.id === h.id ? "ring-2 ring-primary/40" : ""}`}
                 >
                   <motion.button
                     whileTap={{ scale: 0.75 }}
                     disabled={!sched}
                     onClick={(e) => { e.stopPropagation(); toggle(h.id); }}
-                    aria-label={`Complete ${h.name}`}
+                    role="checkbox" aria-checked={done} aria-label={`Complete ${h.name}`}
                     className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 text-xl transition disabled:opacity-40"
                     style={{ borderColor: colorVar(h.color), background: done ? colorVar(h.color) : "transparent" }}
                   >
                     <AnimatePresence mode="wait">
                       {done ? (
-                        <motion.span key="c" initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}>
-                          <Check className="h-6 w-6 text-primary-foreground" strokeWidth={3} />
+                        <motion.span key="c" initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ duration: 0.2 }}>
+                          <Check className="h-6 w-6 text-chart-ink" strokeWidth={3} />
                         </motion.span>
                       ) : (
                         <motion.span key="i" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>{h.icon}</motion.span>
                       )}
                     </AnimatePresence>
                     {done && (
-                      <motion.span className="absolute inset-0 rounded-2xl" style={{ border: `2px solid ${colorVar(h.color)}` }} initial={{ scale: 1, opacity: 0.8 }} animate={{ scale: 1.6, opacity: 0 }} transition={{ duration: 0.6 }} />
+                      <motion.span className="absolute inset-0 rounded-2xl" style={{ border: `2px solid ${colorVar(h.color)}` }} initial={{ scale: 1, opacity: 0.8 }} animate={{ scale: 1.6, opacity: 0 }} transition={{ duration: 0.24 }} />
                     )}
                   </motion.button>
                   <div className="min-w-0 flex-1">
@@ -144,12 +144,11 @@ function HabitsPage() {
 }
 
 function MonthCalendar({ habit, onToggle }: { habit: Habit; onToggle: (key: string) => void }) {
-  const { state } = useRise();
+  const { state, today } = useRise();
   const [offset, setOffset] = useState(0);
-  const month = addMonths(new Date(), offset);
+  const month = addMonths(today, offset);
   const days = eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) });
   const lead = (getDay(startOfMonth(month)) + 6) % 7;
-  const today = new Date();
   return (
     <Panel
       title={`${habit.icon} ${habit.name}`}
@@ -176,7 +175,8 @@ function MonthCalendar({ habit, onToggle }: { habit: Habit; onToggle: (key: stri
               disabled={future || !sched}
               onClick={() => onToggle(k)}
               className={`flex aspect-square items-center justify-center rounded-lg text-xs transition ${future || !sched ? "opacity-30" : "hover:ring-1 hover:ring-border"} ${k === dayKey(today) ? "ring-1 ring-foreground/30" : ""}`}
-              style={{ background: done ? colorVar(habit.color) : "var(--heat-0)", color: done ? "var(--primary-foreground)" : undefined }}
+              aria-label={format(d, "MMMM d, yyyy")} aria-pressed={done}
+              style={{ background: done ? colorVar(habit.color) : "var(--heat-0)", color: done ? "var(--chart-ink)" : undefined }}
             >
               {format(d, "d")}
             </motion.button>
@@ -200,21 +200,23 @@ function MonthCalendar({ habit, onToggle }: { habit: Habit; onToggle: (key: stri
 }
 
 function HabitDialog({ open, onOpenChange, initial, onSave }: { open: boolean; onOpenChange: (o: boolean) => void; initial: Habit | null; onSave: (h: Habit) => void }) {
-  const blank: Habit = { id: "", name: "", icon: "🌿", color: "chart-1", frequency: "daily", createdAt: dayKey(new Date()) };
+  const { state, today } = useRise();
+  const blank: Habit = { id: "", name: "", icon: "🌿", color: "chart-1", frequency: "daily", createdAt: dayKey(today) };
   const [h, setH] = useState<Habit>(blank);
   const [lastOpen, setLastOpen] = useState(false);
   if (open !== lastOpen) {
     setLastOpen(open);
     if (open) setH(initial ?? { ...blank, id: uid() });
   }
+  const error = nameError(h.name, state.habits.filter((x) => x.id !== h.id).map((x) => x.name));
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-2xl">
+      <DialogContent aria-describedby={undefined} className="rounded-2xl">
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl">{initial ? "Edit habit" : "New habit"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <Input placeholder="Habit name" value={h.name} onChange={(e) => setH({ ...h, name: e.target.value })} />
+          <Input aria-label="Habit name" maxLength={120} placeholder="Habit name" value={h.name} onChange={(e) => setH({ ...h, name: e.target.value })} />
           <div className="flex flex-wrap gap-2">
             {ICONS.map((i) => (
               <button key={i} onClick={() => setH({ ...h, icon: i })} className={`h-10 w-10 rounded-xl text-lg transition ${h.icon === i ? "bg-accent ring-2 ring-primary" : "bg-muted"}`}>{i}</button>
@@ -234,8 +236,9 @@ function HabitDialog({ open, onOpenChange, initial, onSave }: { open: boolean; o
             </SelectContent>
           </Select>
         </div>
+        {h.name.trim() && error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
-          <Button disabled={!h.name.trim()} onClick={() => onSave({ ...h, name: h.name.trim() })} className="rounded-full">Save habit</Button>
+          <Button disabled={!!error} onClick={() => onSave({ ...h, name: h.name.trim() })} className="rounded-full">Save habit</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
