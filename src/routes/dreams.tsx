@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Check, LayoutGrid, List, Plus, Trash2, Trophy } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +37,7 @@ function DreamsPage() {
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const setDream = (id: string, fn: (d: Dream) => Dream) => update((s) => ({ ...s, dreams: s.dreams.map((d) => {
     if (d.id !== id) return d;
@@ -132,7 +134,7 @@ function DreamsPage() {
                 <MilestoneAdder key={current.id} existing={current.milestones.map((m) => m.title)} onAdd={(t) => setDream(current.id, (d) => ({ ...d, milestones: [...d.milestones, { id: uid(), title: t, done: false }] }))} />
               </div>
               <div className="flex flex-wrap justify-between gap-2 pt-2">
-                <Button variant="ghost" className="text-destructive" onClick={() => { update((s) => ({ ...s, dreams: s.dreams.filter((d) => d.id !== current.id) })); setDetail(null); }}>Delete</Button>
+                <Button variant="ghost" className="text-destructive" onClick={() => setConfirmDelete(true)}>Delete</Button>
                 {current.achieved ? (
                   <Button variant="outline" className="rounded-full" onClick={() => setDream(current.id, (d) => ({ ...d, achieved: false, achievedAt: undefined }))}>Mark as in progress</Button>
                 ) : (
@@ -144,10 +146,44 @@ function DreamsPage() {
         )}
       </Dialog>
 
+      <AlertDialog open={confirmDelete && !!current} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this dream?</AlertDialogTitle>
+            <AlertDialogDescription>“{current?.title}” and its milestones will be removed from all your devices. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { if (current) update((s) => ({ ...s, dreams: s.dreams.filter((d) => d.id !== current.id) })); setDetail(null); setConfirmDelete(false); }}>Delete dream</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <NewDream open={open} onOpenChange={setOpen} onSave={(d) => { update((s) => ({ ...s, dreams: [d, ...s.dreams] })); setOpen(false); }} />
       <Celebration show={celebrate} />
     </div>
   );
+}
+
+/** Shrinks a picture so it stays small when saved and synced. Falls back to the original. */
+function shrinkImage(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 1200 / Math.max(img.width, img.height, 1));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(dataUrl); return; }
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      try { resolve(canvas.toDataURL("image/jpeg", 0.8)); } catch { resolve(dataUrl); }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
 }
 
 function MilestoneAdder({ onAdd, existing }: { onAdd: (t: string) => void; existing: string[] }) {
@@ -188,10 +224,10 @@ function NewDream({ open, onOpenChange, onSave }: { open: boolean; onOpenChange:
   const onFile = (f?: File) => {
     setFileError("");
     if (!f) return;
-    if (!f.type.startsWith("image/") || f.size > 1_000_000) { setFileError("Choose an image smaller than 1 MB."); return; }
+    if (!f.type.startsWith("image/") || f.size > 8_000_000) { setFileError("Choose an image smaller than 8 MB."); return; }
     const r = new FileReader();
     r.onerror = () => setFileError("This image could not be read.");
-    r.onload = () => setCover(String(r.result));
+    r.onload = async () => setCover(await shrinkImage(String(r.result)));
     r.readAsDataURL(f);
   };
   return (

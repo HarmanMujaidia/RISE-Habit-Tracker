@@ -42,7 +42,7 @@ function Dashboard() {
 
   const todayHabits = state.habits.filter((h) => h.createdAt <= tk && isScheduled(h, today));
   const todayPct = dayCompletion(state, today) ?? 0;
-  const streak = Math.max(0, ...state.habits.map((h) => currentStreak(h, state.logs)));
+  const streak = Math.max(0, ...state.habits.map((h) => currentStreak(h, state.logs, today)));
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
   const week = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(weekStart, i);

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -33,6 +34,7 @@ function HabitsPage() {
   const { state, update, today } = useRise();
   const [editing, setEditing] = useState<Habit | null>(null);
   const [open, setOpen] = useState(false);
+  const [toDelete, setToDelete] = useState<Habit | null>(null);
   const [selected, setSelected] = useState<string | null>(state.habits[0]?.id ?? null);
   const tk = dayKey(today);
 
@@ -76,7 +78,7 @@ function HabitsPage() {
             {state.habits.map((h) => {
               const done = isDone(state.logs, h.id, tk);
               const sched = isScheduled(h, today);
-              const rate = completionRate(h, state.logs);
+              const rate = completionRate(h, state.logs, 30, today);
               return (
                 <motion.div
                   key={h.id}
@@ -112,8 +114,8 @@ function HabitsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium">{h.name}</div>
                     <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                      <span>🔥 {currentStreak(h, state.logs)} streak</span>
-                      <span>🏆 {bestStreak(h, state.logs)} best</span>
+                      <span>🔥 {currentStreak(h, state.logs, today)} streak</span>
+                      <span>🏆 {bestStreak(h, state.logs, today)} best</span>
                       <span className="capitalize">{h.frequency}</span>
                     </div>
                   </div>
@@ -122,7 +124,7 @@ function HabitsPage() {
                     <button aria-label="Edit" onClick={(e) => { e.stopPropagation(); setEditing(h); setOpen(true); }} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
-                    <button aria-label="Delete" onClick={(e) => { e.stopPropagation(); remove(h.id); }} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive">
+                    <button aria-label="Delete" onClick={(e) => { e.stopPropagation(); setToDelete(h); }} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -137,6 +139,19 @@ function HabitsPage() {
           {sel && <MonthCalendar habit={sel} onToggle={(k) => toggle(sel.id, k)} />}
         </div>
       </div>
+
+      <AlertDialog open={!!toDelete} onOpenChange={(o) => { if (!o) setToDelete(null); }}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this habit?</AlertDialogTitle>
+            <AlertDialogDescription>“{toDelete?.name}” and its whole history will be removed from all your devices. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { if (toDelete) remove(toDelete.id); setToDelete(null); }}>Delete habit</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <HabitDialog open={open} onOpenChange={setOpen} initial={editing} onSave={save} />
     </div>
@@ -185,9 +200,9 @@ function MonthCalendar({ habit, onToggle }: { habit: Habit; onToggle: (key: stri
       </div>
       <div className="mt-5 grid grid-cols-3 gap-2 text-center">
         {[
-          ["Streak", currentStreak(habit, state.logs)],
-          ["Best", bestStreak(habit, state.logs)],
-          ["30d rate", `${completionRate(habit, state.logs)}%`],
+          ["Streak", currentStreak(habit, state.logs, today)],
+          ["Best", bestStreak(habit, state.logs, today)],
+          ["30d rate", `${completionRate(habit, state.logs, 30, today)}%`],
         ].map(([l, v]) => (
           <div key={l as string} className="rounded-xl bg-muted p-3">
             <div className="font-serif text-xl">{v}</div>

@@ -222,12 +222,14 @@ export async function pullState(): Promise<RiseState | null> {
 
 export async function pushState(state: RiseState): Promise<void> {
   const session = await validSession();
+  const body = JSON.stringify({ user_id: session.userId, data: state, updated_at: new Date().toISOString() });
   const res = await request("/rest/v1/rise_states?on_conflict=user_id", {
     method: "POST",
     token: session.accessToken,
-    keepalive: true,
+    // Browsers reject keepalive requests over 64 KB, so only ask for it on small saves.
+    keepalive: new TextEncoder().encode(body).length < 60_000,
     headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-    body: JSON.stringify({ user_id: session.userId, data: state, updated_at: new Date().toISOString() }),
+    body,
   });
   if (!res.ok) throw new CloudError("Could not save your progress.", res.status);
 }

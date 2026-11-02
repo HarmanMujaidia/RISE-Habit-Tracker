@@ -55,7 +55,7 @@ function PlansPage() {
   const error = nameError(title, dayTasks.map((t) => t.title));
   const add = () => {
     if (error) return;
-    const t: Task = { id: uid(), title: title.trim(), date: key, time, priority: prio, done: false };
+    const t: Task = { id: uid(), title: title.trim(), date: key, time: time || "09:00", priority: prio, done: false };
     update((s) => ({ ...s, tasks: [...s.tasks, t] }));
     setTitle("");
   };
