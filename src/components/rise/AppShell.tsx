@@ -3,6 +3,7 @@ import { BarChart3, CalendarCheck, Home, Moon, Sparkles, Sun, Target, Settings }
 import { useEffect, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { LogoTile, Wordmark } from "@/components/rise/Logo";
 import { motion } from "framer-motion";
 
 const NAV = [
@@ -49,9 +50,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r bg-sidebar px-4 py-6 md:flex">
-        <Link to="/" className="mb-10 flex items-center gap-2 px-2">
-          <img src="/rise-icon.svg" alt="" width={32} height={32} className="h-8 w-8 rounded-xl" />
-          <span className="font-serif text-2xl font-semibold">Rise</span>
+        <Link to="/" aria-label="Rise, home" className="mb-10 flex items-center gap-2.5 px-2">
+          <LogoTile size={34} />
+          <Wordmark className="h-8 w-auto" />
         </Link>
         <nav className="flex flex-1 flex-col gap-1">
           {NAV.map(({ to, label, icon: Icon }) => (
@@ -73,10 +74,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-background/85 px-5 py-3 backdrop-blur md:hidden">
-        <span className="flex items-center gap-2">
-          <img src="/rise-icon.svg" alt="" width={28} height={28} className="h-7 w-7 rounded-lg" />
-          <span className="font-serif text-xl font-semibold">Rise</span>
-        </span>
+        <Link to="/" aria-label="Rise, home" className="flex items-center gap-2">
+          <LogoTile size={30} />
+          <Wordmark className="h-7 w-auto" />
+        </Link>
         <ThemeToggle />
       </header>
 
