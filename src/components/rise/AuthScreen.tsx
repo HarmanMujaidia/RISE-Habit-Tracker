@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingSkeleton } from "@/components/rise/LoadingSkeleton";
+import { LogoTile, Wordmark } from "@/components/rise/Logo";
 import { useAuth } from "@/lib/auth";
 
 export function AuthGate({ children }: { children: ReactNode }) {
@@ -42,8 +43,8 @@ function AuthScreen() {
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <img src="/rise-icon.svg" alt="" width={48} height={48} className="mb-4 h-12 w-12 rounded-2xl" />
-          <h1 className="font-serif text-3xl font-semibold">Rise</h1>
+          <LogoTile size={64} className="mb-5" />
+          <h1><Wordmark className="h-11 w-auto" /></h1>
           <p className="mt-2 text-sm text-muted-foreground">Sign in to keep your habits, plans and dreams in sync on every device.</p>
         </div>
         <div className="rounded-2xl border bg-card p-6 shadow-sm">
