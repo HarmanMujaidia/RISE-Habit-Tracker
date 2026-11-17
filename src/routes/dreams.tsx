@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { differenceInCalendarDays, format, isValid, parseISO } from "date-fns";
 import { motion } from "framer-motion";
-import { Check, LayoutGrid, List, Plus, Trash2, Trophy } from "lucide-react";
+import { Check, LayoutGrid, List, Pencil, Plus, Trash2, Trophy } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -38,6 +38,7 @@ function DreamsPage() {
   const [detail, setDetail] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
 
   const setDream = (id: string, fn: (d: Dream) => Dream) => update((s) => ({ ...s, dreams: s.dreams.map((d) => {
     if (d.id !== id) return d;
@@ -50,6 +51,7 @@ function DreamsPage() {
     setTimeout(() => setCelebrate(false), 2200);
   };
   const current = state.dreams.find((d) => d.id === detail);
+  const editingDream = state.dreams.find((d) => d.id === editing);
 
   return (
     <div>
@@ -134,7 +136,10 @@ function DreamsPage() {
                 <MilestoneAdder key={current.id} existing={current.milestones.map((m) => m.title)} onAdd={(t) => setDream(current.id, (d) => ({ ...d, milestones: [...d.milestones, { id: uid(), title: t, done: false }] }))} />
               </div>
               <div className="flex flex-wrap justify-between gap-2 pt-2">
-                <Button variant="ghost" className="text-destructive" onClick={() => setConfirmDelete(true)}>Delete</Button>
+                <div className="flex gap-1">
+                  <Button variant="ghost" className="text-destructive" onClick={() => setConfirmDelete(true)}>Delete</Button>
+                  <Button variant="outline" className="rounded-full" onClick={() => { setEditing(current.id); setDetail(null); }}><Pencil className="mr-1 h-3.5 w-3.5" /> Edit</Button>
+                </div>
                 {current.achieved ? (
                   <Button variant="outline" className="rounded-full" onClick={() => setDream(current.id, (d) => ({ ...d, achieved: false, achievedAt: undefined }))}>Mark as in progress</Button>
                 ) : (
@@ -159,7 +164,20 @@ function DreamsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <NewDream open={open} onOpenChange={setOpen} onSave={(d) => { update((s) => ({ ...s, dreams: [d, ...s.dreams] })); setOpen(false); }} />
+      <DreamDialog open={open} onOpenChange={setOpen} onSave={(d) => { update((s) => ({ ...s, dreams: [d, ...s.dreams] })); setOpen(false); }} />
+      {editingDream && (
+        <DreamDialog
+          key={editingDream.id}
+          open
+          dream={editingDream}
+          onOpenChange={(o) => { if (!o) { setEditing(null); setDetail(editingDream.id); } }}
+          onSave={(next) => {
+            setDream(editingDream.id, (d) => ({ ...d, title: next.title, description: next.description, category: next.category, targetDate: next.targetDate, cover: next.cover }));
+            setEditing(null);
+            setDetail(editingDream.id);
+          }}
+        />
+      )}
       <Celebration show={celebrate} />
     </div>
   );
@@ -197,43 +215,48 @@ function MilestoneAdder({ onAdd, existing }: { onAdd: (t: string) => void; exist
   );
 }
 
-function NewDream({ open, onOpenChange, onSave }: { open: boolean; onOpenChange: (o: boolean) => void; onSave: (d: Dream) => void }) {
+/** Adds a new dream, or edits an existing one when `dream` is given. */
+function DreamDialog({ open, onOpenChange, onSave, dream }: { open: boolean; onOpenChange: (o: boolean) => void; onSave: (d: Dream) => void; dream?: Dream }) {
   const { state } = useRise();
   const [fileError, setFileError] = useState("");
-  const [title, setTitle] = useState("");
-  const [desc, setDesc] = useState("");
-  const [cat, setCat] = useState<Category>("personal");
-  const [date, setDate] = useState("");
-  const [cover, setCover] = useState("");
+  const [reading, setReading] = useState(false);
+  const [title, setTitle] = useState(dream?.title ?? "");
+  const [desc, setDesc] = useState(dream?.description ?? "");
+  const [cat, setCat] = useState<Category>(dream?.category ?? "personal");
+  const [date, setDate] = useState(dream?.targetDate ?? "");
+  const [cover, setCover] = useState(dream?.cover ?? "");
   const [ms, setMs] = useState("");
-  const error = nameError(title, state.dreams.map((d) => d.title));
+  const error = nameError(title, state.dreams.filter((d) => d.id !== dream?.id).map((d) => d.title));
+  const blocked = !!error || !!fileError || reading;
   const save = () => {
-    if (error || fileError) return;
+    if (blocked) return;
     onSave({
-      id: uid(),
+      id: dream?.id ?? uid(),
       title: title.trim(),
       description: desc.trim(),
       category: cat,
       targetDate: date,
       cover: cover.trim(),
-      milestones: [...new Map(ms.split("\n").map((s) => s.trim().slice(0, 120)).filter(Boolean).map((t) => [t.toLocaleLowerCase(), t])).values()].map((t) => ({ id: uid(), title: t, done: false })),
-      achieved: false,
+      milestones: dream ? dream.milestones : [...new Map(ms.split("\n").map((s) => s.trim().slice(0, 120)).filter(Boolean).map((t) => [t.toLocaleLowerCase(), t])).values()].map((t) => ({ id: uid(), title: t, done: false })),
+      achieved: dream?.achieved ?? false,
+      achievedAt: dream?.achievedAt,
     });
-    setTitle(""); setDesc(""); setCover(""); setMs(""); setDate("");
+    if (!dream) { setTitle(""); setDesc(""); setCover(""); setMs(""); setDate(""); }
   };
   const onFile = (f?: File) => {
     setFileError("");
     if (!f) return;
     if (!f.type.startsWith("image/") || f.size > 8_000_000) { setFileError("Choose an image smaller than 8 MB."); return; }
+    setReading(true);
     const r = new FileReader();
-    r.onerror = () => setFileError("This image could not be read.");
-    r.onload = async () => setCover(await shrinkImage(String(r.result)));
+    r.onerror = () => { setFileError("This image could not be read."); setReading(false); };
+    r.onload = async () => { setCover(await shrinkImage(String(r.result))); setReading(false); };
     r.readAsDataURL(f);
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent aria-describedby={undefined} className="max-h-[90vh] overflow-y-auto rounded-2xl">
-        <DialogHeader><DialogTitle className="font-serif text-2xl">A new dream</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-serif text-2xl">{dream ? "Edit dream" : "A new dream"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <Input aria-label="Dream title" maxLength={120} placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
           <Textarea maxLength={2000} placeholder="Describe it…" value={desc} onChange={(e) => setDesc(e.target.value)} />
@@ -242,17 +265,25 @@ function NewDream({ open, onOpenChange, onSave }: { open: boolean; onOpenChange:
               <SelectTrigger className="capitalize"><SelectValue /></SelectTrigger>
               <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}</SelectContent>
             </Select>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <Input type="date" aria-label="Target date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Cover image (optional — upload or paste a link)</label>
-            <Input type="file" accept="image/*" onChange={(e) => onFile(e.target.files?.[0])} />
-            <Input placeholder="https://…" value={cover.startsWith("data:") ? "" : cover} onChange={(e) => setCover(e.target.value)} />
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground">{dream ? "Picture (upload a new one or paste a link)" : "Cover image (optional — upload or paste a link)"}</label>
+            {cover && (
+              <div className="relative overflow-hidden rounded-xl border">
+                <img src={cover} alt="Cover preview" className="h-32 w-full object-cover" />
+                <Button type="button" size="sm" variant="secondary" className="absolute right-2 top-2 rounded-full" onClick={() => { setCover(""); setFileError(""); }}>Remove picture</Button>
+              </div>
+            )}
+            <Input type="file" accept="image/*" aria-label="Upload picture" onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
+            <Input aria-label="Picture link" placeholder="https://…" value={cover.startsWith("data:") ? "" : cover} onChange={(e) => setCover(e.target.value)} />
           </div>
-          <Textarea maxLength={6000} placeholder={"Milestones, one per line"} value={ms} onChange={(e) => setMs(e.target.value)} rows={3} />
+          {dream
+            ? <p className="text-xs text-muted-foreground">Add, tick or remove milestones from the dream's details.</p>
+            : <Textarea maxLength={6000} placeholder={"Milestones, one per line"} value={ms} onChange={(e) => setMs(e.target.value)} rows={3} />}
         </div>
         {(fileError || (title.trim() && error)) && <p role="alert" className="text-sm text-destructive">{fileError || error}</p>}
-        <DialogFooter><Button disabled={!!error || !!fileError} onClick={save} className="rounded-full">Add to vision board</Button></DialogFooter>
+        <DialogFooter><Button disabled={blocked} onClick={save} className="rounded-full">{reading ? "Preparing picture…" : dream ? "Save changes" : "Add to vision board"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
