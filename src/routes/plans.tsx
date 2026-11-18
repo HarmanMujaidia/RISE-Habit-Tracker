@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { addDays, format, isToday, parseISO, startOfWeek } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Briefcase, Check, ChevronLeft, ChevronRight, Heart, ListTodo, Pencil, Plane, Plus, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, ChevronRight, Pencil, Plus } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useRise } from "@/lib/store";
-import { PLAN_KINDS, PLAN_LABEL, dayKey, nameError, planError, planKind, plansOn, taskScore, uid, type PlanKind, type Priority, type Task } from "@/lib/rise";
+import { PLAN_KINDS, PLAN_LABEL, dayKey, nameError, planError, planKind, plansOn, taskScore, travelLine, uid, type PlanKind, type Priority, type Task } from "@/lib/rise";
+import { KIND_ICON } from "@/components/rise/plan-kinds";
 import { Bar, PageHeader, Panel, ProgressRing } from "@/components/rise/visuals";
 
 import { EmptyState } from "@/components/rise/EmptyState";
@@ -31,17 +32,7 @@ export const Route = createFileRoute("/plans")({
 });
 
 const PRIO: Record<Priority, string> = { high: "var(--chart-4)", medium: "var(--chart-3)", low: "var(--chart-2)" };
-const KIND_ICON: Record<PlanKind, LucideIcon> = { task: ListTodo, meeting: Users, work: Briefcase, travel: Plane, personal: Heart };
-
 const shortDate = (k: string) => format(parseISO(k), "MMM d");
-
-/** "Dubai → Delhi · back Nov 22" for a travel plan; empty for everything else. */
-function travelLine(t: Task) {
-  if (planKind(t) !== "travel") return "";
-  const route = [t.from, t.destination].filter(Boolean).join(" → ");
-  const back = t.returnDate && t.returnDate > t.date ? `back ${shortDate(t.returnDate)}` : "";
-  return [route, back].filter(Boolean).join(" · ");
-}
 
 type PlanTarget = { task?: Task; date: string } | null;
 

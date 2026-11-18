@@ -94,6 +94,16 @@ export function plansOn(tasks: Task[], k: string) {
     .sort((a, b) => Number(a.continued === b.continued ? 0 : a.continued ? -1 : 1) || a.task.time.localeCompare(b.task.time));
 }
 
+const shortDay = (k: string) => format(parseISO(k), "MMM d");
+
+/** "Dubai → Delhi · back Nov 22" for a travel plan; empty for everything else. */
+export function travelLine(t: Task) {
+  if (planKind(t) !== "travel") return "";
+  const route = [t.from, t.destination].filter(Boolean).join(" → ");
+  const back = t.returnDate && t.returnDate > t.date ? `back ${shortDay(t.returnDate)}` : "";
+  return [route, back].filter(Boolean).join(" · ");
+}
+
 /** Returns a message when a plan can't be saved, or an empty string. */
 export function planError(p: { kind: PlanKind; date: string; destination: string; returnDate: string }) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(p.date)) return "Pick a date.";
