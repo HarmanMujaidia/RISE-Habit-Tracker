@@ -3,6 +3,8 @@ import { z } from "zod";
 
 export const ENTRY_KEY = "rise-user-entries-v2";
 export const LEGACY_KEY = "rise-state-v1";
+/** Set while this device holds changes the cloud has not received yet. */
+export const PENDING_KEY = "rise-unsynced-v1";
 
 const date = z.string().refine((v) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(new Date(`${v}T12:00:00`).getTime()) && new Date(`${v}T12:00:00`).getDate() === Number(v.slice(-2)));
 const entry = z.object({ id: z.string().min(1), title: z.string().min(1) });

@@ -18,6 +18,7 @@ import { StoreProvider } from "@/lib/store";
 import { AuthProvider } from "@/lib/auth";
 import { AuthGate } from "@/components/rise/AuthScreen";
 import { ReminderRunner } from "@/components/rise/Reminders";
+import { RegisterSW } from "@/components/rise/RegisterSW";
 
 function NotFoundComponent() {
   return (
@@ -134,6 +135,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <RegisterSW />
       <MotionConfig reducedMotion="user" transition={{ duration: 0.22, ease: "easeOut" }}>
         <AuthProvider>
           <AuthGate>
