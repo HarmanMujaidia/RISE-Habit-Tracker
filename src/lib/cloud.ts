@@ -118,6 +118,20 @@ function clearSession() {
   try { localStorage.removeItem(SESSION_KEY); } catch { /* Nothing to clear. */ }
 }
 
+/** Google's public client ID. When set, sign-in uses Google's own button instead of a redirect through Supabase. */
+export const googleClientId = (env["VITE_GOOGLE_CLIENT_ID"] ?? "").trim();
+export const googleButtonEnabled = cloudEnabled && /^[\w-]+\.apps\.googleusercontent\.com$/.test(googleClientId);
+
+/** Exchanges the token from Google's button for a Rise session. */
+export async function signInWithGoogleToken(idToken: string, nonce: string): Promise<Session> {
+  const res = await request("/auth/v1/token?grant_type=id_token", { method: "POST", body: JSON.stringify({ provider: "google", id_token: idToken, nonce }) });
+  const body = await readBody(res);
+  const session = res.ok ? toSession(body) : null;
+  if (!session) throw new CloudError(friendlyMessage(body, res.status), res.status);
+  writeSession(session);
+  return session;
+}
+
 export function signInWithGoogle() {
   const redirect = encodeURIComponent(window.location.origin);
   // A browser redirect cannot send headers, so the project key goes in the link.
