@@ -4,7 +4,7 @@ import { dayKey } from "@/lib/rise";
 import { dueReminders, loadFired, loadReminders, saveFired, type Reminder } from "@/lib/reminders";
 
 async function show(r: Reminder) {
-  const options = { body: r.body, icon: "/rise-app-192.png", badge: "/rise-app-192.png", tag: r.key };
+  const options = { body: r.body, icon: "/rise-app-192.png", tag: r.key };
   try {
     const reg = await navigator.serviceWorker?.getRegistration();
     if (reg) { await reg.showNotification(r.title, options); return; }
