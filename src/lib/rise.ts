@@ -53,6 +53,8 @@ export interface RiseState {
   logs: Record<string, string[]>;
   tasks: Task[];
   dreams: Dream[];
+  /** One-line reflections, keyed by the Monday of the week they are about. */
+  reviews: Record<string, string>;
 }
 
 export const HABIT_COLORS: HabitColor[] = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"];
@@ -207,8 +209,30 @@ export function weeklyScore(state: RiseState, today = new Date()) {
   return values.length ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : 0;
 }
 
+/** The Monday that starts the week containing `d`, as a day key. */
+export const weekKey = (d: Date) => dayKey(startOfWeek(d, { weekStartsOn: 1 }));
+
+/** Numbers for one Monday-to-Sunday week. Days after `today` are left out. */
+export function weekSummary(state: RiseState, weekStart: Date, today = new Date()) {
+  const end = dayKey(addDays(weekStart, 6));
+  const start = dayKey(weekStart);
+  const last = dayKey(today) < end ? today : addDays(weekStart, 6);
+  const days = Array.from({ length: Math.max(0, differenceInCalendarDays(last, weekStart) + 1) }, (_, i) => addDays(weekStart, i));
+  const values = days.map((d) => dayCompletion(state, d)).filter((v): v is number => v !== null);
+  const inWeek = state.tasks.filter((t) => t.date >= start && t.date <= end && t.date <= dayKey(today));
+  return {
+    habitPct: values.length ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : 0,
+    perfectDays: values.filter((v) => v === 100).length,
+    streak: Math.max(0, ...state.habits.map((h) => currentStreak(h, state.logs, last))),
+    plansDone: inWeek.filter((t) => t.done).length,
+    plansTotal: inWeek.length,
+    trips: state.tasks.filter((t) => planKind(t) === "travel" && t.date >= start && t.date <= end).length,
+    hasActivity: values.length > 0 || inWeek.length > 0,
+  };
+}
+
 export function emptyState(): RiseState {
-  return { habits: [], logs: {}, tasks: [], dreams: [] };
+  return { habits: [], logs: {}, tasks: [], dreams: [], reviews: {} };
 }
 
 export function earnedBadges(state: RiseState, today = new Date()) {

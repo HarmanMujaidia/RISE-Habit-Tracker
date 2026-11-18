@@ -13,6 +13,7 @@ const schema = z.object({
   tasks: z.array(entry.extend({ date, time: z.string(), priority: z.enum(["low", "medium", "high"]), done: z.boolean(), kind: z.enum(["task", "meeting", "work", "travel", "personal"]).optional(), notes: z.string().optional(), from: z.string().optional(), destination: z.string().optional(), returnDate: z.union([date, z.literal("")]).optional(), seriesId: z.string().optional() })),
   dreams: z.array(entry.extend({ description: z.string(), category: z.enum(["career", "health", "travel", "finance", "personal"]), targetDate: z.union([date, z.literal("")]), cover: z.string(), milestones: z.array(entry.extend({ done: z.boolean() })), achieved: z.boolean(), achievedAt: date.optional() })),
   logs: z.record(z.array(date)),
+  reviews: z.record(z.string().max(1000)).default({}),
 });
 
 /** Checks data from storage or the cloud. Returns null when it is not valid. */

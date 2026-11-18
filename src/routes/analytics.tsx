@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRise } from "@/lib/store";
 import { earnedBadges, bestStreak, colorVar, currentStreak, dayCompletion, dayKey, dreamProgress, taskScore } from "@/lib/rise";
 import { PageHeader, Panel, tooltipStyle } from "@/components/rise/visuals";
+import { WeeklyReview } from "@/components/rise/WeeklyReview";
 
 import { EmptyState } from "@/components/rise/EmptyState";
 
@@ -82,6 +83,8 @@ function AnalyticsPage() {
       />
 
       {!state.habits.length && !state.tasks.length && !state.dreams.length && <EmptyState message="No activity yet. Your insights will grow with your progress." label="Add habit" to="/habits" />}
+
+      <div className="mb-6"><WeeklyReview /></div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Habits over time">

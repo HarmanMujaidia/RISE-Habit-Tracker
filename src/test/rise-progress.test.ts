@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestStreak, completionRate, currentStreak, dayCompletion, dreamProgress, earnedBadges, emptyState, taskScore, weeklyScore, millisecondsUntilMidnight, nameError, dayKey, planEnd, planError, plansOn, repeatWeekly, type Habit, type Task } from "@/lib/rise";
+import { bestStreak, completionRate, currentStreak, dayCompletion, dreamProgress, earnedBadges, emptyState, taskScore, weeklyScore, millisecondsUntilMidnight, nameError, dayKey, planEnd, planError, plansOn, repeatWeekly, weekKey, weekSummary, type Habit, type Task } from "@/lib/rise";
 import { dueReminders, loadReminders, defaultReminders } from "@/lib/reminders";
 import { ENTRY_KEY, LEGACY_KEY, exportBackup, loadEntries, parseBackup, parseState, saveEntries } from "@/lib/rise-storage";
 
@@ -9,7 +9,7 @@ const habit: Habit = { id: "real-habit", name: "My habit", icon: "🌿", color: 
 describe("Real progress only", () => {
   it("starts with no entries, completions or badges and zero scores", () => {
     const s = emptyState();
-    expect(s).toEqual({ habits: [], logs: {}, tasks: [], dreams: [] });
+    expect(s).toEqual({ habits: [], logs: {}, tasks: [], dreams: [], reviews: {} });
     expect(dayCompletion(s, today) ?? 0).toBe(0);
     expect(taskScore(s.tasks)).toBe(0);
     expect(earnedBadges(s, today)).toEqual([]);
@@ -202,5 +202,23 @@ describe("Backup files", () => {
     expect(parseBackup("not json")).toBeNull();
     expect(parseBackup(JSON.stringify({ app: "rise", data: { habits: "no" } }))).toBeNull();
     expect(parseBackup("null")).toBeNull();
+  });
+});
+
+describe("Weekly review", () => {
+  const h: Habit = { id: "h", name: "Read", icon: "📖", color: "chart-1", frequency: "daily", createdAt: "2026-11-01" };
+  const monday = new Date(2026, 10, 16, 12);
+  const task = (id: string, date: string, done: boolean): Task => ({ id, title: id, date, time: "09:00", priority: "low", done });
+  it("finds the Monday of any day in the week", () => {
+    expect(weekKey(new Date(2026, 10, 22, 12))).toBe("2026-11-16");
+    expect(weekKey(monday)).toBe("2026-11-16");
+  });
+  it("summarises only the days that have happened", () => {
+    const state = { ...emptyState(), habits: [h], logs: { h: ["2026-11-16", "2026-11-17"] }, tasks: [task("a", "2026-11-16", true), task("b", "2026-11-17", false), task("c", "2026-11-20", false)] };
+    const sum = weekSummary(state, monday, new Date(2026, 10, 18, 12));
+    expect(sum).toMatchObject({ habitPct: 67, perfectDays: 2, plansDone: 1, plansTotal: 2, trips: 0, hasActivity: true });
+  });
+  it("is empty for a week with nothing in it", () => {
+    expect(weekSummary(emptyState(), monday, new Date(2026, 10, 18, 12))).toMatchObject({ habitPct: 0, plansTotal: 0, hasActivity: false });
   });
 });

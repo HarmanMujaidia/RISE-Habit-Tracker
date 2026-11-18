@@ -4,7 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { Bar as RBar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Check, Flame, Plane, Sparkles, TrendingUp } from "lucide-react";
 import { useRise } from "@/lib/store";
-import { colorVar, currentStreak, dayCompletion, dayKey, dreamProgress, isDone, isScheduled, plansOn, taskScore, travelLine, weeklyScore } from "@/lib/rise";
+import { colorVar, currentStreak, dayCompletion, dayKey, dreamProgress, isDone, isScheduled, plansOn, taskScore, travelLine, weekKey, weeklyScore } from "@/lib/rise";
 import { Heatmap, Panel, ProgressRing, tooltipStyle } from "@/components/rise/visuals";
 
 import { EmptyState } from "@/components/rise/EmptyState";
@@ -79,6 +79,13 @@ function Dashboard() {
         <h1 className="mt-1 text-3xl font-semibold sm:text-5xl">{greet}.</h1>
         <p className="mt-2 font-serif text-lg italic text-muted-foreground">“{LINES[today.getDay()]}”</p>
       </div>
+
+      {today.getDay() === 0 && !state.reviews[weekKey(today)] && (
+        <Link to="/analytics" className="surface flex items-center justify-between gap-3 p-4 text-sm transition hover:shadow-lift">
+          <span>It's Sunday. Take a minute to review your week.</span>
+          <span className="shrink-0 text-primary">Review →</span>
+        </Link>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {stats.map((s, i) => (
