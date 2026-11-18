@@ -8,7 +8,7 @@ const date = z.string().refine((v) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.i
 const entry = z.object({ id: z.string().min(1), title: z.string().min(1) });
 const schema = z.object({
   habits: z.array(z.object({ id: z.string().min(1), name: z.string().min(1), icon: z.string(), color: z.enum(["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"]), frequency: z.enum(["daily", "weekdays", "weekends"]), createdAt: date })),
-  tasks: z.array(entry.extend({ date, time: z.string(), priority: z.enum(["low", "medium", "high"]), done: z.boolean(), kind: z.enum(["task", "meeting", "work", "travel", "personal"]).optional(), notes: z.string().optional(), from: z.string().optional(), destination: z.string().optional(), returnDate: z.union([date, z.literal("")]).optional() })),
+  tasks: z.array(entry.extend({ date, time: z.string(), priority: z.enum(["low", "medium", "high"]), done: z.boolean(), kind: z.enum(["task", "meeting", "work", "travel", "personal"]).optional(), notes: z.string().optional(), from: z.string().optional(), destination: z.string().optional(), returnDate: z.union([date, z.literal("")]).optional(), seriesId: z.string().optional() })),
   dreams: z.array(entry.extend({ description: z.string(), category: z.enum(["career", "health", "travel", "finance", "personal"]), targetDate: z.union([date, z.literal("")]), cover: z.string(), milestones: z.array(entry.extend({ done: z.boolean() })), achieved: z.boolean(), achievedAt: date.optional() })),
   logs: z.record(z.array(date)),
 });

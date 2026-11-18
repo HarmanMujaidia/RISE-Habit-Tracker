@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestStreak, completionRate, currentStreak, dayCompletion, dreamProgress, earnedBadges, emptyState, taskScore, weeklyScore, millisecondsUntilMidnight, nameError, dayKey, planEnd, planError, plansOn, type Habit, type Task } from "@/lib/rise";
+import { bestStreak, completionRate, currentStreak, dayCompletion, dreamProgress, earnedBadges, emptyState, taskScore, weeklyScore, millisecondsUntilMidnight, nameError, dayKey, planEnd, planError, plansOn, repeatWeekly, type Habit, type Task } from "@/lib/rise";
 import { ENTRY_KEY, LEGACY_KEY, loadEntries, parseState, saveEntries } from "@/lib/rise-storage";
 
 const today = new Date(2026, 10, 6, 12);
@@ -153,5 +153,13 @@ describe("Weekly plans and travel", () => {
     const state = { ...emptyState(), tasks: all };
     expect(parseState(JSON.parse(JSON.stringify(state)))?.tasks).toEqual(all);
     expect(parseState({ ...state, tasks: [{ ...trip, returnDate: "soon" }] })).toBeNull();
+  });
+  it("repeats a plan weekly as separate plans that share a series", () => {
+    const made = repeatWeekly(meeting, 3);
+    expect(made.map((t) => t.date)).toEqual(["2026-11-16", "2026-11-23", "2026-11-30"]);
+    expect(made[0]!.id).toBe("m");
+    expect(new Set(made.map((t) => t.id)).size).toBe(3);
+    expect(new Set(made.map((t) => t.seriesId)).size).toBe(1);
+    expect(made.every((t) => !t.done)).toBe(true);
   });
 });

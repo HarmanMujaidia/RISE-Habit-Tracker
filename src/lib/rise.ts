@@ -29,6 +29,8 @@ export interface Task {
   destination?: string | undefined;
   /** Travel only: the last day of the trip. Empty or missing means a one-day or one-way plan. */
   returnDate?: string | undefined;
+  /** Shared by every plan created together with "Repeat weekly". */
+  seriesId?: string | undefined;
 }
 export interface Milestone {
   id: string;
@@ -92,6 +94,12 @@ export function plansOn(tasks: Task[], k: string) {
     .filter((t) => t.date === k || (t.date < k && k <= planEnd(t)))
     .map((task) => ({ task, continued: task.date !== k }))
     .sort((a, b) => Number(a.continued === b.continued ? 0 : a.continued ? -1 : 1) || a.task.time.localeCompare(b.task.time));
+}
+
+/** Copies of a plan on the same weekday for the next `weeks` weeks (the first copy is the plan itself). */
+export function repeatWeekly(base: Task, weeks: number): Task[] {
+  const seriesId = uid();
+  return Array.from({ length: weeks }, (_, i) => ({ ...base, id: i === 0 ? base.id : uid(), date: dayKey(addDays(parseISO(base.date), i * 7)), seriesId }));
 }
 
 const shortDay = (k: string) => format(parseISO(k), "MMM d");
