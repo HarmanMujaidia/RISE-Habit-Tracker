@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRise } from "@/lib/store";
 import { offerUndo } from "@/lib/undo";
-import { CATEGORIES, nameError, completionRate, dayKey, dreamProgress, linkedHabits, uid, type Category, type Dream } from "@/lib/rise";
+import { CATEGORIES, nameError, dayKey, dreamProgress, habitSupport, linkedHabits, uid, type Category, type Dream } from "@/lib/rise";
 import { Bar, Celebration, PageHeader } from "@/components/rise/visuals";
 
 import { EmptyState } from "@/components/rise/EmptyState";
@@ -141,6 +141,9 @@ function DreamsPage() {
                 ))}
                 <MilestoneAdder key={current.id} existing={current.milestones.map((m) => m.title)} onAdd={(t) => setDream(current.id, (d) => ({ ...d, milestones: [...d.milestones, { id: uid(), title: t, done: false }] }))} />
               </div>
+              {state.habits.length > 0 && linkedHabits(current, state.habits).length === 0 && !current.achieved && (
+                <p className="text-xs text-muted-foreground">No habit is linked to this dream. Tap Edit and choose the habits that move it forward; only the habits you choose count.</p>
+              )}
               {linkedHabits(current, state.habits).length > 0 && (
                 <div className="space-y-1.5">
                   <div className="text-xs uppercase tracking-wider text-muted-foreground">Supported by habits</div>
@@ -148,7 +151,7 @@ function DreamsPage() {
                     <div key={h.id} className="flex items-center gap-3 text-sm">
                       <span>{h.icon}</span>
                       <span className="min-w-0 flex-1 break-words">{h.name}</span>
-                      <span className="tabular-nums text-muted-foreground">{completionRate(h, state.logs, 30, today)}% last 30 days</span>
+                      <span className="tabular-nums text-muted-foreground">{habitSupport(h, state.logs, current.targetDate, today)}% {current.targetDate && current.targetDate > dayKey(today) ? "of days to target" : "last 30 days"}</span>
                     </div>
                   ))}
                 </div>
@@ -301,7 +304,7 @@ function DreamDialog({ open, onOpenChange, onSave, dream }: { open: boolean; onO
           </div>
           {state.habits.length > 0 && (
             <div className="space-y-2">
-              <div className="text-xs text-muted-foreground">Habits that support this dream (optional). Their last 30 days count toward its progress.</div>
+              <div className="text-xs text-muted-foreground">Habits that support this dream (optional). Each scheduled day you finish fills the bar a little, up to the target date. Only the habits you choose count.</div>
               <div className="flex flex-wrap gap-2">
                 {state.habits.map((h) => {
                   const on = habitIds.includes(h.id);

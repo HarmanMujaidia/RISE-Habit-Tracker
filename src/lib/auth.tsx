@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import {
   cloudEnabled,
   consumeOAuthRedirect,
+  lookupName,
   readSession,
   signInWithGoogle,
   signInWithPassword,
@@ -16,6 +17,8 @@ export type AuthStatus = "loading" | "local" | "signed-out" | "signed-in";
 interface AuthCtx {
   status: AuthStatus;
   email: string;
+  /** First name from the account, or "". */
+  name: string;
   error: string;
   notice: string;
   signInGoogle: () => void;
@@ -28,6 +31,7 @@ const noop = async () => {};
 const LOCAL_ONLY: AuthCtx = {
   status: "local",
   email: "",
+  name: "",
   error: "",
   notice: "",
   signInGoogle: () => {},
@@ -43,6 +47,7 @@ const clean = (email: string) => email.trim().toLowerCase();
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -53,8 +58,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const session = (await consumeOAuthRedirect()) ?? readSession();
         if (!active) return;
-        if (session) { setEmail(session.email); setStatus("signed-in"); }
-        else setStatus("signed-out");
+        if (session) {
+          setEmail(session.email);
+          setName(session.name ?? "");
+          setStatus("signed-in");
+          // Older saved sessions have no name yet; ask once. Offline or failed lookups just keep the plain greeting.
+          if (session.name === undefined) lookupName().then((n) => { if (active) setName(n); }).catch(() => {});
+        } else setStatus("signed-out");
       } catch (e) {
         if (!active) return;
         setError(e instanceof Error ? e.message : "Sign-in failed. Please try again.");
@@ -68,13 +78,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(""); setNotice("");
     const session = await signInWithPassword(clean(address), password);
     setEmail(session.email);
+    setName(session.name ?? "");
     setStatus("signed-in");
   }, []);
 
   const signUp = useCallback(async (address: string, password: string) => {
     setError(""); setNotice("");
     const session = await signUpWithPassword(clean(address), password);
-    if (session) { setEmail(session.email); setStatus("signed-in"); }
+    if (session) { setEmail(session.email); setName(session.name ?? ""); setStatus("signed-in"); }
     else setNotice("Check your email and confirm your account, then sign in.");
   }, []);
 
@@ -83,12 +94,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // This device should not keep the previous account's progress.
     try { localStorage.removeItem(ENTRY_KEY); localStorage.removeItem(PENDING_KEY); } catch { /* Nothing stored to remove. */ }
     setEmail("");
+    setName("");
     setStatus("signed-out");
   }, []);
 
   const value = useMemo<AuthCtx>(
-    () => ({ status, email, error, notice, signInGoogle: signInWithGoogle, signInPassword, signUp, signOut }),
-    [status, email, error, notice, signInPassword, signUp, signOut],
+    () => ({ status, email, name, error, notice, signInGoogle: signInWithGoogle, signInPassword, signUp, signOut }),
+    [status, email, name, error, notice, signInPassword, signUp, signOut],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

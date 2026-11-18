@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { bestStreak, completionRate, currentStreak, dayCompletion, dreamProgress, earnedBadges, emptyState, taskScore, weeklyScore, millisecondsUntilMidnight, nameError, dayKey, planEnd, planError, plansOn, repeatWeekly, weekKey, weekSummary, type Habit, type Task } from "@/lib/rise";
+import { bestStreak, completionRate, currentStreak, dayCompletion, dreamProgress, habitSupport, earnedBadges, emptyState, taskScore, weeklyScore, millisecondsUntilMidnight, nameError, dayKey, planEnd, planError, plansOn, repeatWeekly, weekKey, weekSummary, type Habit, type Task } from "@/lib/rise";
+import { firstName } from "@/lib/profile";
 import { dueReminders, loadReminders, defaultReminders } from "@/lib/reminders";
 import { ENTRY_KEY, LEGACY_KEY, exportBackup, loadEntries, parseBackup, parseState, saveEntries } from "@/lib/rise-storage";
 
@@ -239,5 +240,39 @@ describe("Dreams supported by habits", () => {
     expect(dreamProgress(withMilestone, { habits: [h], logs: { h: days } }, today)).toBe(75);
     expect(dreamProgress(withMilestone, { habits: [], logs: {} }, today)).toBe(100);
     expect(dreamProgress({ ...withMilestone, achieved: true }, { habits: [h], logs: {} }, today)).toBe(100);
+  });
+});
+
+describe("Greeting name", () => {
+  it("uses the first name from a Google profile", () => {
+    expect(firstName({ user_metadata: { full_name: "Harman Mujaidia" } })).toBe("Harman");
+    expect(firstName({ user_metadata: { given_name: "Harman", full_name: "Harman Mujaidia" } })).toBe("Harman");
+    expect(firstName({ user_metadata: { name: "  Asha   Rao " } })).toBe("Asha");
+  });
+  it("is empty when there is no usable name", () => {
+    expect(firstName(undefined)).toBe("");
+    expect(firstName({ user_metadata: { full_name: 42, name: "   " } })).toBe("");
+    expect(firstName({})).toBe("");
+  });
+});
+
+describe("Dream progress follows the habit schedule", () => {
+  const study: Habit = { id: "s", name: "Study", icon: "📚", color: "chart-1", frequency: "daily", createdAt: "2026-11-01" };
+  const base = { description: "", category: "personal" as const, cover: "", milestones: [], achieved: false };
+  const d11 = { ...base, id: "11", title: "90% in 11th", targetDate: "2026-11-30", habitIds: ["s"] };
+  const d12 = { ...base, id: "12", title: "95% in 12th", targetDate: "2027-03-31" };
+  const state = { habits: [study], logs: { s: ["2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05"] } };
+  const today = new Date(2026, 10, 10, 12);
+  it("fills a little for every finished day up to the target date", () => {
+    expect(habitSupport(study, state.logs, "2026-11-30", today)).toBe(17);
+    expect(dreamProgress(d11, state, today)).toBe(17);
+    expect(dreamProgress(d11, { habits: [study], logs: { s: [...state.logs.s, "2026-11-06"] } }, today)).toBe(20);
+  });
+  it("only moves the dream the habit is linked to", () => {
+    expect(dreamProgress(d12, state, today)).toBe(0);
+  });
+  it("falls back to the last 30 days with no future target date", () => {
+    expect(habitSupport(study, state.logs, "", today)).toBe(50);
+    expect(habitSupport(study, state.logs, "2026-11-05", today)).toBe(50);
   });
 });
