@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { Bar as RBar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Check, Flame, Plane, Sparkles, TrendingUp } from "lucide-react";
 import { useRise } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import { colorVar, currentStreak, dayCompletion, dayKey, dreamProgress, isDone, isScheduled, plansOn, taskScore, travelLine, weekKey, weeklyScore } from "@/lib/rise";
 import { Heatmap, Panel, ProgressRing, tooltipStyle } from "@/components/rise/visuals";
 
@@ -36,6 +37,7 @@ const LINES = [
 function Dashboard() {
   const { state, update, today } = useRise();
   const reduced = useReducedMotion();
+  const { name } = useAuth();
   const tk = dayKey(today);
   const hour = today.getHours();
   const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -76,7 +78,7 @@ function Dashboard() {
     <div className="space-y-6">
       <div>
         <p className="text-sm text-muted-foreground">{format(today, "EEEE, MMMM d")}</p>
-        <h1 className="mt-1 text-3xl font-semibold sm:text-5xl">{greet}.</h1>
+        <h1 className="mt-1 text-3xl font-semibold sm:text-5xl">{greet}{name ? `, ${name}` : ""}.</h1>
         <p className="mt-2 font-serif text-lg italic text-muted-foreground">“{LINES[today.getDay()]}”</p>
       </div>
 

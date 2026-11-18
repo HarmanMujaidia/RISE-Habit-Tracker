@@ -1,3 +1,4 @@
+import { firstName } from "./profile";
 import type { RiseState } from "./rise";
 import { parseState } from "./rise-storage";
 
@@ -23,6 +24,8 @@ export interface Session {
   expiresAt: number;
   userId: string;
   email: string;
+  /** First name from the account. "" means looked up and none found; undefined means not looked up yet. */
+  name?: string | undefined;
 }
 
 export class CloudError extends Error {
@@ -42,7 +45,7 @@ interface TokenBody {
   refresh_token?: string;
   expires_in?: number;
   expires_at?: number;
-  user?: { id?: string; email?: string };
+  user?: { id?: string; email?: string; user_metadata?: Record<string, unknown> };
   error?: string;
   error_description?: string;
   msg?: string;
@@ -83,6 +86,7 @@ function friendlyMessage(body: TokenBody, status: number) {
 
 function toSession(body: TokenBody, fallbackUser?: Session): Session | null {
   const user = body.user ?? (fallbackUser ? { id: fallbackUser.userId, email: fallbackUser.email } : undefined);
+  const name = (body.user ? firstName(body.user) : "") || fallbackUser?.name;
   if (!body.access_token || !body.refresh_token || !user?.id) return null;
   return {
     accessToken: body.access_token,
@@ -90,6 +94,7 @@ function toSession(body: TokenBody, fallbackUser?: Session): Session | null {
     expiresAt: body.expires_at ?? Math.floor(Date.now() / 1000) + (body.expires_in ?? 3600),
     userId: user.id,
     email: user.email ?? "",
+    name,
   };
 }
 
@@ -99,7 +104,7 @@ export function readSession(): Session | null {
     if (!raw) return null;
     const s = JSON.parse(raw) as Partial<Session>;
     if (!s.accessToken || !s.refreshToken || !s.userId || typeof s.expiresAt !== "number") return null;
-    return { accessToken: s.accessToken, refreshToken: s.refreshToken, expiresAt: s.expiresAt, userId: s.userId, email: s.email ?? "" };
+    return { accessToken: s.accessToken, refreshToken: s.refreshToken, expiresAt: s.expiresAt, userId: s.userId, email: s.email ?? "", name: typeof s.name === "string" ? s.name : undefined };
   } catch {
     return null;
   }
@@ -154,7 +159,7 @@ async function finishRedirect(): Promise<Session | null> {
   if (!accessToken || !refreshToken) return null;
 
   const res = await request("/auth/v1/user", { token: accessToken });
-  const user = (await readBody(res)) as { id?: string; email?: string };
+  const user = (await readBody(res)) as { id?: string; email?: string; user_metadata?: Record<string, unknown> };
   if (!res.ok || !user.id) throw new CloudError("Google sign-in could not be completed. Please try again.", res.status);
   const expiresIn = Number(hash.get("expires_in") ?? 3600);
   const session: Session = {
@@ -163,6 +168,7 @@ async function finishRedirect(): Promise<Session | null> {
     expiresAt: Number(hash.get("expires_at")) || Math.floor(Date.now() / 1000) + expiresIn,
     userId: user.id,
     email: user.email ?? "",
+    name: firstName(user),
   };
   writeSession(session);
   return session;
@@ -179,6 +185,18 @@ export async function signOutRemote() {
   clearSession();
   if (!session) return;
   try { await request("/auth/v1/logout", { method: "POST", token: session.accessToken }); } catch { /* Already signed out on this device. */ }
+}
+
+/** Fetches the account's first name once for sessions saved before names were kept. */
+export async function lookupName(): Promise<string> {
+  const session = await validSession();
+  const res = await request("/auth/v1/user", { token: session.accessToken });
+  const user = (await readBody(res)) as { user_metadata?: Record<string, unknown> };
+  if (!res.ok) return "";
+  const name = firstName(user);
+  const latest = readSession();
+  if (latest && latest.userId === session.userId) writeSession({ ...latest, name });
+  return name;
 }
 
 let refreshing: Promise<Session> | null = null;

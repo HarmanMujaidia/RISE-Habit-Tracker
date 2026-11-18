@@ -198,7 +198,29 @@ export function dayCompletion(state: RiseState, d: Date) {
 export const linkedHabits = (d: Dream, habits: Habit[]) => habits.filter((h) => d.habitIds?.includes(h.id));
 
 /**
- * How far along a dream is: milestones done, and the last 30 days of its linked habits.
+ * How much of a habit's plan is done for a dream. With a target date in the future this is the share of the
+ * habit's scheduled days, from when it started to the target date, that are done, so the bar fills a little
+ * with every day completed. Without one it is the habit's last 30 days.
+ */
+export function habitSupport(h: Habit, logs: RiseState["logs"], targetDate: string, today = new Date()) {
+  const todayKey = dayKey(today);
+  if (!targetDate || targetDate <= todayKey) return completionRate(h, logs, 30, today);
+  const start = parseISO(h.createdAt);
+  const span = Math.min(differenceInCalendarDays(parseISO(targetDate), start), 3660);
+  let total = 0;
+  let done = 0;
+  for (let i = 0; i <= span; i++) {
+    const d = addDays(start, i);
+    if (!isScheduled(h, d)) continue;
+    total++;
+    const k = dayKey(d);
+    if (k <= todayKey && isDone(logs, h.id, k)) done++;
+  }
+  return total ? Math.round((done / total) * 100) : 0;
+}
+
+/**
+ * How far along a dream is: milestones done, and its linked habits (see habitSupport).
  * When it has both, the two count equally. A dream marked achieved is 100.
  */
 export function dreamProgress(d: Dream, state?: Pick<RiseState, "habits" | "logs">, today = new Date()) {
@@ -206,7 +228,7 @@ export function dreamProgress(d: Dream, state?: Pick<RiseState, "habits" | "logs
   const parts: number[] = [];
   if (d.milestones.length) parts.push((d.milestones.filter((m) => m.done).length / d.milestones.length) * 100);
   const habits = state ? linkedHabits(d, state.habits) : [];
-  if (state && habits.length) parts.push(habits.reduce((a, h) => a + completionRate(h, state.logs, 30, today), 0) / habits.length);
+  if (state && habits.length) parts.push(habits.reduce((a, h) => a + habitSupport(h, state.logs, d.targetDate, today), 0) / habits.length);
   return parts.length ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : 0;
 }
 
