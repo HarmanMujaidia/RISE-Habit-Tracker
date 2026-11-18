@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { bestStreak, completionRate, currentStreak, dayCompletion, dreamProgress, earnedBadges, emptyState, taskScore, weeklyScore, millisecondsUntilMidnight, nameError, dayKey, planEnd, planError, plansOn, repeatWeekly, type Habit, type Task } from "@/lib/rise";
 import { dueReminders, loadReminders, defaultReminders } from "@/lib/reminders";
-import { ENTRY_KEY, LEGACY_KEY, loadEntries, parseState, saveEntries } from "@/lib/rise-storage";
+import { ENTRY_KEY, LEGACY_KEY, exportBackup, loadEntries, parseBackup, parseState, saveEntries } from "@/lib/rise-storage";
 
 const today = new Date(2026, 10, 6, 12);
 const habit: Habit = { id: "real-habit", name: "My habit", icon: "🌿", color: "chart-1", frequency: "daily", createdAt: "2026-11-01" };
@@ -189,5 +189,18 @@ describe("Reminders", () => {
   });
   it("ignores broken saved settings", () => {
     expect(loadReminders({ getItem: () => "{oops" })).toEqual(defaultReminders);
+  });
+});
+
+describe("Backup files", () => {
+  const state = { ...emptyState(), habits: [{ id: "h", name: "Read", icon: "📖", color: "chart-1" as const, frequency: "daily" as const, createdAt: "2026-11-01" }], logs: { h: ["2026-11-02"] } };
+  it("restores exactly what was exported", () => {
+    expect(parseBackup(exportBackup(state))).toEqual(state);
+  });
+  it("accepts a bare state and rejects anything else", () => {
+    expect(parseBackup(JSON.stringify(state))).toEqual(state);
+    expect(parseBackup("not json")).toBeNull();
+    expect(parseBackup(JSON.stringify({ app: "rise", data: { habits: "no" } }))).toBeNull();
+    expect(parseBackup("null")).toBeNull();
   });
 });

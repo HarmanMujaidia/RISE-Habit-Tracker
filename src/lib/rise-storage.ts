@@ -44,3 +44,19 @@ export function saveEntries(storage: Pick<Storage, "setItem" | "removeItem">, st
     return false;
   }
 }
+
+/** The text of a backup file. */
+export function exportBackup(state: RiseState, now = new Date()) {
+  return JSON.stringify({ app: "rise", version: 1, exportedAt: now.toISOString(), data: state }, null, 2);
+}
+
+/** Reads a backup file's text. Returns null when it is not a valid Rise backup. */
+export function parseBackup(text: string): RiseState | null {
+  try {
+    const raw: unknown = JSON.parse(text);
+    const data = raw && typeof raw === "object" && "data" in raw ? (raw as { data: unknown }).data : raw;
+    return parseState(data);
+  } catch {
+    return null;
+  }
+}
