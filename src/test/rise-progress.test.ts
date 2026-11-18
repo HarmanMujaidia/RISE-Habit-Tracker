@@ -222,3 +222,22 @@ describe("Weekly review", () => {
     expect(weekSummary(emptyState(), monday, new Date(2026, 10, 18, 12))).toMatchObject({ habitPct: 0, plansTotal: 0, hasActivity: false });
   });
 });
+
+describe("Dreams supported by habits", () => {
+  const h: Habit = { id: "h", name: "Gym", icon: "💪", color: "chart-1", frequency: "daily", createdAt: "2026-11-01" };
+  const dream = { id: "d", title: "Get fit", description: "", category: "health" as const, targetDate: "", cover: "", milestones: [], achieved: false };
+  const today = new Date(2026, 10, 10, 12);
+  const days = ["2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05"];
+  it("ignores habits unless the dream links them", () => {
+    expect(dreamProgress(dream, { habits: [h], logs: { h: days } }, today)).toBe(0);
+  });
+  it("uses the linked habit's last 30 days when there are no milestones", () => {
+    expect(dreamProgress({ ...dream, habitIds: ["h"] }, { habits: [h], logs: { h: days } }, today)).toBe(50);
+  });
+  it("averages milestones and habits, and skips habits that were deleted", () => {
+    const withMilestone = { ...dream, habitIds: ["h"], milestones: [{ id: "m", title: "First 5k", done: true }] };
+    expect(dreamProgress(withMilestone, { habits: [h], logs: { h: days } }, today)).toBe(75);
+    expect(dreamProgress(withMilestone, { habits: [], logs: {} }, today)).toBe(100);
+    expect(dreamProgress({ ...withMilestone, achieved: true }, { habits: [h], logs: {} }, today)).toBe(100);
+  });
+});

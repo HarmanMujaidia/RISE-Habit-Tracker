@@ -54,7 +54,7 @@ function Dashboard() {
     return { day: format(d, "MMM d"), value: dayCompletion(state, d) ?? 0 };
   });
   const active = state.dreams.filter((d) => !d.achieved);
-  const dreamsAvg = state.dreams.length ? Math.round(state.dreams.reduce((a, d) => a + dreamProgress(d), 0) / state.dreams.length) : 0;
+  const dreamsAvg = state.dreams.length ? Math.round(state.dreams.reduce((a, d) => a + dreamProgress(d, state, today), 0) / state.dreams.length) : 0;
   const todayTasks = state.tasks.filter((t) => t.date === tk).sort((a, b) => a.time.localeCompare(b.time));
   const trips = plansOn(state.tasks, tk).filter((p) => p.continued).map((p) => p.task);
 
@@ -192,7 +192,7 @@ function Dashboard() {
           <div className="grid grid-cols-2 gap-4">
             {state.dreams.slice(0, 4).map((d, i) => (
               <div key={d.id} className="flex flex-col items-center gap-2 text-center">
-                <ProgressRing value={dreamProgress(d)} size={76} stroke={7} color={`var(--chart-${(i % 5) + 1})`} />
+                <ProgressRing value={dreamProgress(d, state, today)} size={76} stroke={7} color={`var(--chart-${(i % 5) + 1})`} />
                 <span className="line-clamp-1 text-xs text-muted-foreground">{d.title}</span>
               </div>
             ))}

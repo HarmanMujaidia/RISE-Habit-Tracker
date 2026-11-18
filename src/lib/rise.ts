@@ -47,6 +47,8 @@ export interface Dream {
   milestones: Milestone[];
   achieved: boolean;
   achievedAt?: string | undefined;
+  /** Habits that move this dream forward. Ids of deleted habits are ignored. */
+  habitIds?: string[] | undefined;
 }
 export interface RiseState {
   habits: Habit[];
@@ -192,10 +194,20 @@ export function dayCompletion(state: RiseState, d: Date) {
   return Math.round((done / sched.length) * 100);
 }
 
-export function dreamProgress(d: Dream) {
+/** Habits linked to a dream that still exist. */
+export const linkedHabits = (d: Dream, habits: Habit[]) => habits.filter((h) => d.habitIds?.includes(h.id));
+
+/**
+ * How far along a dream is: milestones done, and the last 30 days of its linked habits.
+ * When it has both, the two count equally. A dream marked achieved is 100.
+ */
+export function dreamProgress(d: Dream, state?: Pick<RiseState, "habits" | "logs">, today = new Date()) {
   if (d.achieved) return 100;
-  if (!d.milestones.length) return 0;
-  return Math.round((d.milestones.filter((m) => m.done).length / d.milestones.length) * 100);
+  const parts: number[] = [];
+  if (d.milestones.length) parts.push((d.milestones.filter((m) => m.done).length / d.milestones.length) * 100);
+  const habits = state ? linkedHabits(d, state.habits) : [];
+  if (state && habits.length) parts.push(habits.reduce((a, h) => a + completionRate(h, state.logs, 30, today), 0) / habits.length);
+  return parts.length ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : 0;
 }
 
 export function taskScore(tasks: Task[]) {

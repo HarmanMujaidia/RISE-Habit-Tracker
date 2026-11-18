@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRise } from "@/lib/store";
 import { offerUndo } from "@/lib/undo";
-import { CATEGORIES, nameError, dayKey, dreamProgress, uid, type Category, type Dream } from "@/lib/rise";
+import { CATEGORIES, nameError, completionRate, dayKey, dreamProgress, linkedHabits, uid, type Category, type Dream } from "@/lib/rise";
 import { Bar, Celebration, PageHeader } from "@/components/rise/visuals";
 
 import { EmptyState } from "@/components/rise/EmptyState";
@@ -79,7 +79,7 @@ function DreamsPage() {
 
       <div className={board ? "columns-1 gap-4 sm:columns-2 lg:columns-3 [&>*]:mb-4" : "space-y-3"}>
         {state.dreams.map((d, i) => {
-          const p = dreamProgress(d);
+          const p = dreamProgress(d, state, today);
           const days = d.targetDate ? differenceInCalendarDays(parseISO(d.targetDate), today) : null;
           return (
             <motion.button
@@ -126,8 +126,8 @@ function DreamsPage() {
               </DialogHeader>
               <p className="text-sm text-muted-foreground">{current.description}</p>
               <div className="flex items-center gap-3">
-                <Bar value={dreamProgress(current)} color={CAT_COLOR[current.category]} className="h-2.5" />
-                <span className="text-sm tabular-nums">{dreamProgress(current)}%</span>
+                <Bar value={dreamProgress(current, state, today)} color={CAT_COLOR[current.category]} className="h-2.5" />
+                <span className="text-sm tabular-nums">{dreamProgress(current, state, today)}%</span>
               </div>
               <div className="space-y-1">
                 {current.milestones.map((m) => (
@@ -141,6 +141,18 @@ function DreamsPage() {
                 ))}
                 <MilestoneAdder key={current.id} existing={current.milestones.map((m) => m.title)} onAdd={(t) => setDream(current.id, (d) => ({ ...d, milestones: [...d.milestones, { id: uid(), title: t, done: false }] }))} />
               </div>
+              {linkedHabits(current, state.habits).length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Supported by habits</div>
+                  {linkedHabits(current, state.habits).map((h) => (
+                    <div key={h.id} className="flex items-center gap-3 text-sm">
+                      <span>{h.icon}</span>
+                      <span className="min-w-0 flex-1 break-words">{h.name}</span>
+                      <span className="tabular-nums text-muted-foreground">{completionRate(h, state.logs, 30, today)}% last 30 days</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="flex flex-wrap justify-between gap-2 pt-2">
                 <div className="flex gap-1">
                   <Button variant="ghost" className="text-destructive" onClick={() => setConfirmDelete(true)}>Delete</Button>
@@ -178,7 +190,7 @@ function DreamsPage() {
           dream={editingDream}
           onOpenChange={(o) => { if (!o) { setEditing(null); setDetail(editingDream.id); } }}
           onSave={(next) => {
-            setDream(editingDream.id, (d) => ({ ...d, title: next.title, description: next.description, category: next.category, targetDate: next.targetDate, cover: next.cover }));
+            setDream(editingDream.id, (d) => ({ ...d, title: next.title, description: next.description, category: next.category, targetDate: next.targetDate, cover: next.cover, habitIds: next.habitIds }));
             setEditing(null);
             setDetail(editingDream.id);
           }}
@@ -232,6 +244,8 @@ function DreamDialog({ open, onOpenChange, onSave, dream }: { open: boolean; onO
   const [date, setDate] = useState(dream?.targetDate ?? "");
   const [cover, setCover] = useState(dream?.cover ?? "");
   const [ms, setMs] = useState("");
+  const [habitIds, setHabitIds] = useState<string[]>(dream?.habitIds ?? []);
+  const toggleHabit = (id: string) => setHabitIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
   const error = nameError(title, state.dreams.filter((d) => d.id !== dream?.id).map((d) => d.title));
   const blocked = !!error || !!fileError || reading;
   const save = () => {
@@ -246,8 +260,9 @@ function DreamDialog({ open, onOpenChange, onSave, dream }: { open: boolean; onO
       milestones: dream ? dream.milestones : [...new Map(ms.split("\n").map((s) => s.trim().slice(0, 120)).filter(Boolean).map((t) => [t.toLocaleLowerCase(), t])).values()].map((t) => ({ id: uid(), title: t, done: false })),
       achieved: dream?.achieved ?? false,
       achievedAt: dream?.achievedAt,
+      habitIds: habitIds.length ? habitIds : undefined,
     });
-    if (!dream) { setTitle(""); setDesc(""); setCover(""); setMs(""); setDate(""); }
+    if (!dream) { setTitle(""); setDesc(""); setCover(""); setMs(""); setDate(""); setHabitIds([]); }
   };
   const onFile = (f?: File) => {
     setFileError("");
@@ -284,6 +299,17 @@ function DreamDialog({ open, onOpenChange, onSave, dream }: { open: boolean; onO
             <Input type="file" accept="image/*" aria-label="Upload picture" onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
             <Input aria-label="Picture link" placeholder="https://…" value={cover.startsWith("data:") ? "" : cover} onChange={(e) => setCover(e.target.value)} />
           </div>
+          {state.habits.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-xs text-muted-foreground">Habits that support this dream (optional). Their last 30 days count toward its progress.</div>
+              <div className="flex flex-wrap gap-2">
+                {state.habits.map((h) => {
+                  const on = habitIds.includes(h.id);
+                  return <button key={h.id} type="button" aria-pressed={on} onClick={() => toggleHabit(h.id)} className={`rounded-full border px-3 py-1 text-sm transition ${on ? "border-primary bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"}`}>{h.icon} {h.name}</button>;
+                })}
+              </div>
+            </div>
+          )}
           {dream
             ? <p className="text-xs text-muted-foreground">Add, tick or remove milestones from the dream's details.</p>
             : <Textarea maxLength={6000} placeholder={"Milestones, one per line"} value={ms} onChange={(e) => setMs(e.target.value)} rows={3} />}

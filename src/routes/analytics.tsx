@@ -136,7 +136,7 @@ function AnalyticsPage() {
             </div>
             <div className="space-y-3">
               <div><div className="font-serif text-4xl">{achieved}</div><div className="text-sm text-muted-foreground">achieved of {state.dreams.length}</div></div>
-              <div className="text-sm text-muted-foreground">Avg progress <span className="font-medium text-foreground">{state.dreams.length ? Math.round(state.dreams.reduce((a, d) => a + dreamProgress(d), 0) / state.dreams.length) : 0}%</span></div>
+              <div className="text-sm text-muted-foreground">Avg progress <span className="font-medium text-foreground">{state.dreams.length ? Math.round(state.dreams.reduce((a, d) => a + dreamProgress(d, state, today), 0) / state.dreams.length) : 0}%</span></div>
               <div className="text-sm text-muted-foreground">Task rate <span className="font-medium text-foreground">{taskScore(allTasks)}%</span></div>
             </div>
           </div>
