@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRise } from "@/lib/store";
+import { offerUndo } from "@/lib/undo";
 import { bestStreak, colorVar, completionRate, currentStreak, dayKey, nameError, HABIT_COLORS, isDone, isScheduled, uid, type Frequency, type Habit } from "@/lib/rise";
 import { PageHeader, Panel, ProgressRing } from "@/components/rise/visuals";
 
@@ -50,6 +51,10 @@ function HabitsPage() {
     setOpen(false);
   };
   const remove = (id: string) => {
+    const habit = state.habits.find((h) => h.id === id);
+    const index = state.habits.findIndex((h) => h.id === id);
+    const history = state.logs[id];
+    if (habit) offerUndo(`“${habit.name}” deleted`, () => update((s) => s.habits.some((h) => h.id === habit.id) ? s : { ...s, habits: [...s.habits.slice(0, index), habit, ...s.habits.slice(index)], logs: history ? { ...s.logs, [habit.id]: history } : s.logs }));
     update((s) => {
       const logs = { ...s.logs };
       delete logs[id];
@@ -144,7 +149,7 @@ function HabitsPage() {
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this habit?</AlertDialogTitle>
-            <AlertDialogDescription>“{toDelete?.name}” and its whole history will be removed from all your devices. This cannot be undone.</AlertDialogDescription>
+            <AlertDialogDescription>“{toDelete?.name}” and its whole history will be removed from all your devices.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>

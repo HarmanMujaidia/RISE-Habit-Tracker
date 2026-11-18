@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRise } from "@/lib/store";
+import { offerUndo } from "@/lib/undo";
 import { CATEGORIES, nameError, dayKey, dreamProgress, uid, type Category, type Dream } from "@/lib/rise";
 import { Bar, Celebration, PageHeader } from "@/components/rise/visuals";
 
@@ -51,6 +52,11 @@ function DreamsPage() {
     setTimeout(() => setCelebrate(false), 2200);
   };
   const current = state.dreams.find((d) => d.id === detail);
+  const deleteDream = (dream: Dream) => {
+    const index = state.dreams.findIndex((d) => d.id === dream.id);
+    update((s) => ({ ...s, dreams: s.dreams.filter((d) => d.id !== dream.id) }));
+    offerUndo(`“${dream.title}” deleted`, () => update((s) => s.dreams.some((d) => d.id === dream.id) ? s : { ...s, dreams: [...s.dreams.slice(0, index), dream, ...s.dreams.slice(index)] }));
+  };
   const editingDream = state.dreams.find((d) => d.id === editing);
 
   return (
@@ -155,11 +161,11 @@ function DreamsPage() {
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this dream?</AlertDialogTitle>
-            <AlertDialogDescription>“{current?.title}” and its milestones will be removed from all your devices. This cannot be undone.</AlertDialogDescription>
+            <AlertDialogDescription>“{current?.title}” and its milestones will be removed from all your devices.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { if (current) update((s) => ({ ...s, dreams: s.dreams.filter((d) => d.id !== current.id) })); setDetail(null); setConfirmDelete(false); }}>Delete dream</AlertDialogAction>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { if (current) deleteDream(current); setDetail(null); setConfirmDelete(false); }}>Delete dream</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useRise } from "@/lib/store";
+import { offerUndo } from "@/lib/undo";
 import { PLAN_KINDS, PLAN_LABEL, dayKey, nameError, planError, planKind, plansOn, repeatWeekly, taskScore, travelLine, uid, type PlanKind, type Priority, type Task } from "@/lib/rise";
 import { KIND_ICON } from "@/components/rise/plan-kinds";
 import { Bar, PageHeader, Panel, ProgressRing } from "@/components/rise/visuals";
@@ -85,12 +86,12 @@ function PlansPage() {
     setDialog(null);
   };
   const remove = (id: string, scope: "one" | "following" = "one") => {
-    update((s) => {
-      const target = s.tasks.find((t) => t.id === id);
-      const gone = (t: Task) => t.id === id || (scope === "following" && !!target?.seriesId && t.seriesId === target.seriesId && t.date >= target.date);
-      return { ...s, tasks: s.tasks.filter((t) => !gone(t)) };
-    });
+    const target = state.tasks.find((t) => t.id === id);
+    const gone = (t: Task) => t.id === id || (scope === "following" && !!target?.seriesId && t.seriesId === target.seriesId && t.date >= target.date);
+    const removed = state.tasks.filter(gone);
+    update((s) => ({ ...s, tasks: s.tasks.filter((t) => !gone(t)) }));
     setDialog(null);
+    if (removed.length) offerUndo(removed.length > 1 ? `${removed.length} plans deleted` : "Plan deleted", () => update((s) => ({ ...s, tasks: [...s.tasks, ...removed.filter((r) => !s.tasks.some((t) => t.id === r.id))] })));
   };
 
   return (
