@@ -8,7 +8,7 @@ import {
   signOutRemote,
   signUpWithPassword,
 } from "./cloud";
-import { ENTRY_KEY } from "./rise-storage";
+import { ENTRY_KEY, PENDING_KEY } from "./rise-storage";
 
 /** "local" means no cloud settings were provided, so the app runs on this device only. */
 export type AuthStatus = "loading" | "local" | "signed-out" | "signed-in";
@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     await signOutRemote();
     // This device should not keep the previous account's progress.
-    try { localStorage.removeItem(ENTRY_KEY); } catch { /* Nothing stored to remove. */ }
+    try { localStorage.removeItem(ENTRY_KEY); localStorage.removeItem(PENDING_KEY); } catch { /* Nothing stored to remove. */ }
     setEmail("");
     setStatus("signed-out");
   }, []);

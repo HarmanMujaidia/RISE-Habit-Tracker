@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { emptyState, millisecondsUntilMidnight, type RiseState } from "./rise";
-import { loadEntries, saveEntries } from "./rise-storage";
+import { PENDING_KEY, loadEntries, saveEntries } from "./rise-storage";
 import { CloudError, pullState, pushState } from "./cloud";
 import { useAuth } from "./auth";
 import { LoadingSkeleton } from "@/components/rise/LoadingSkeleton";
@@ -15,6 +15,11 @@ interface Ctx {
 }
 const StoreCtx = createContext<Ctx | null>(null);
 
+const setPending = (on: boolean) => {
+  try { if (on) localStorage.setItem(PENDING_KEY, "1"); else localStorage.removeItem(PENDING_KEY); } catch { /* Best effort. */ }
+};
+const hasPending = () => { try { return localStorage.getItem(PENDING_KEY) === "1"; } catch { return false; } };
+
 const SYNC_FAILED = "Cloud sync failed. Your changes are saved on this device and will sync when you are back online.";
 const LOAD_FAILED = "We could not load your cloud progress. Check your connection and refresh. Nothing has been overwritten.";
 
@@ -26,12 +31,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [saveFailed, setSaveFailed] = useState(false);
   const [synced, setSynced] = useState(false);
   const [syncError, setSyncError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  const cloudRef = useRef(false);
   const stateRef = useRef<RiseState | null>(null);
   const dirtyRef = useRef(false);
   const syncedRef = useRef(false);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const chain = useRef<Promise<void>>(Promise.resolve());
   const loaded = state !== null;
+  cloudRef.current = cloud;
 
   useEffect(() => {
     try {
@@ -72,6 +80,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       dirtyRef.current = false;
       try {
         await pushState(stateRef.current);
+        if (!dirtyRef.current) setPending(false);
         setSyncError("");
       } catch (e) {
         dirtyRef.current = true;
@@ -92,12 +101,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       try {
         const saved = await pullState();
         if (cancelled) return;
-        if (saved) {
+        if (saved && !hasPending()) {
           dirtyRef.current = false;
           stateRef.current = saved;
           setState(saved);
         } else {
-          await pushState(stateRef.current ?? emptyState());
+          // A new account, or changes made on this device (for example while offline) that the cloud never received.
+          const sent = stateRef.current ?? emptyState();
+          await pushState(sent);
+          // Anything edited while this was in flight stays marked as unsynced and is sent next.
+          if (stateRef.current === sent || !stateRef.current) { dirtyRef.current = false; setPending(false); }
         }
         if (cancelled) return;
         syncedRef.current = true;
@@ -110,7 +123,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [cloud, loaded, signOut]);
+  }, [cloud, loaded, signOut, attempt]);
 
   useEffect(() => {
     stateRef.current = state;
@@ -122,7 +135,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!cloud) return;
-    const retry = () => { if (dirtyRef.current) void flush(); };
+    const retry = () => {
+      if (!syncedRef.current) setAttempt((a) => a + 1);
+      else if (dirtyRef.current) void flush();
+    };
     const onHide = () => { if (document.visibilityState === "hidden") retry(); };
     window.addEventListener("online", retry);
     window.addEventListener("focus", retry);
@@ -141,6 +157,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!s) return s;
     const next = fn(s);
     dirtyRef.current = true;
+    if (cloudRef.current) setPending(true);
     stateRef.current = next;
     try { saveEntries(localStorage, next); } catch { /* The effect displays storage errors. */ }
     return next;

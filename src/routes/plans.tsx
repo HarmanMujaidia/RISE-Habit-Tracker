@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { addDays, format, isToday, parseISO, startOfWeek } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Briefcase, Check, ChevronLeft, ChevronRight, Heart, ListTodo, Pencil, Plane, Plus, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, ChevronRight, Pencil, Plus } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useRise } from "@/lib/store";
-import { PLAN_KINDS, PLAN_LABEL, dayKey, nameError, planError, planKind, plansOn, taskScore, uid, type PlanKind, type Priority, type Task } from "@/lib/rise";
+import { offerUndo } from "@/lib/undo";
+import { PLAN_KINDS, PLAN_LABEL, dayKey, nameError, planError, planKind, plansOn, repeatWeekly, taskScore, travelLine, uid, type PlanKind, type Priority, type Task } from "@/lib/rise";
+import { KIND_ICON } from "@/components/rise/plan-kinds";
 import { Bar, PageHeader, Panel, ProgressRing } from "@/components/rise/visuals";
 
 import { EmptyState } from "@/components/rise/EmptyState";
@@ -31,17 +33,7 @@ export const Route = createFileRoute("/plans")({
 });
 
 const PRIO: Record<Priority, string> = { high: "var(--chart-4)", medium: "var(--chart-3)", low: "var(--chart-2)" };
-const KIND_ICON: Record<PlanKind, LucideIcon> = { task: ListTodo, meeting: Users, work: Briefcase, travel: Plane, personal: Heart };
-
 const shortDate = (k: string) => format(parseISO(k), "MMM d");
-
-/** "Dubai → Delhi · back Nov 22" for a travel plan; empty for everything else. */
-function travelLine(t: Task) {
-  if (planKind(t) !== "travel") return "";
-  const route = [t.from, t.destination].filter(Boolean).join(" → ");
-  const back = t.returnDate && t.returnDate > t.date ? `back ${shortDate(t.returnDate)}` : "";
-  return [route, back].filter(Boolean).join(" · ");
-}
 
 type PlanTarget = { task?: Task; date: string } | null;
 
@@ -89,13 +81,17 @@ function PlansPage() {
   const todayInWeek = weekDays.some((d) => dayKey(d) === dayKey(today));
   const addDate = view === "day" ? key : todayInWeek ? dayKey(today) : dayKey(weekStart);
 
-  const save = (t: Task) => {
-    update((s) => ({ ...s, tasks: s.tasks.some((x) => x.id === t.id) ? s.tasks.map((x) => (x.id === t.id ? t : x)) : [...s.tasks, t] }));
+  const save = (made: Task[]) => {
+    update((s) => ({ ...s, tasks: made.length === 1 && s.tasks.some((x) => x.id === made[0]!.id) ? s.tasks.map((x) => (x.id === made[0]!.id ? made[0]! : x)) : [...s.tasks, ...made] }));
     setDialog(null);
   };
-  const remove = (id: string) => {
-    update((s) => ({ ...s, tasks: s.tasks.filter((t) => t.id !== id) }));
+  const remove = (id: string, scope: "one" | "following" = "one") => {
+    const target = state.tasks.find((t) => t.id === id);
+    const gone = (t: Task) => t.id === id || (scope === "following" && !!target?.seriesId && t.seriesId === target.seriesId && t.date >= target.date);
+    const removed = state.tasks.filter(gone);
+    update((s) => ({ ...s, tasks: s.tasks.filter((t) => !gone(t)) }));
     setDialog(null);
+    if (removed.length) offerUndo(removed.length > 1 ? `${removed.length} plans deleted` : "Plan deleted", () => update((s) => ({ ...s, tasks: [...s.tasks, ...removed.filter((r) => !s.tasks.some((t) => t.id === r.id))] })));
   };
 
   return (
@@ -260,7 +256,7 @@ function PlansPage() {
   );
 }
 
-function PlanDialog({ task, defaultDate, all, onSave, onDelete, onClose }: { task?: Task | undefined; defaultDate: string; all: Task[]; onSave: (t: Task) => void; onDelete: (id: string) => void; onClose: () => void }) {
+function PlanDialog({ task, defaultDate, all, onSave, onDelete, onClose }: { task?: Task | undefined; defaultDate: string; all: Task[]; onSave: (made: Task[]) => void; onDelete: (id: string, scope: "one" | "following") => void; onClose: () => void }) {
   const [kind, setKind] = useState<PlanKind>(task ? planKind(task) : "task");
   const [title, setTitle] = useState(task?.title ?? "");
   const [date, setDate] = useState(task?.date ?? defaultDate);
@@ -270,18 +266,27 @@ function PlanDialog({ task, defaultDate, all, onSave, onDelete, onClose }: { tas
   const [from, setFrom] = useState(task?.from ?? "");
   const [destination, setDestination] = useState(task?.destination ?? "");
   const [returnDate, setReturnDate] = useState(task?.returnDate ?? "");
+  const [repeat, setRepeat] = useState("0");
   const [tried, setTried] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   const travel = kind === "travel";
   // A trip without a title is called "Travel to <destination>".
   const finalTitle = title.trim() || (travel && destination.trim() ? `Travel to ${destination.trim()}` : "");
-  const sameDay = all.filter((t) => t.id !== task?.id && t.date === date).map((t) => t.title);
-  const error = planError({ kind, date, destination, returnDate }) || nameError(finalTitle, sameDay);
+  const weeks = !task && !travel ? Number(repeat) : 0;
+  const dates = weeks > 1 && /^\d{4}-\d{2}-\d{2}$/.test(date) ? repeatWeekly({ id: "", title: "", date, time: "", priority: "low", done: false }, weeks).map((t) => t.date) : [date];
+  const clash = (() => {
+    for (const [i, d] of dates.entries()) {
+      const message = nameError(finalTitle, all.filter((t) => t.id !== task?.id && t.date === d).map((t) => t.title));
+      if (message) return i === 0 ? message : `${shortDate(d)}: ${message}`;
+    }
+    return "";
+  })();
+  const error = planError({ kind, date, destination, returnDate }) || clash;
 
   const submit = () => {
     if (error) { setTried(true); return; }
-    onSave({
+    const made: Task = {
       id: task?.id ?? uid(),
       title: finalTitle,
       date,
@@ -293,7 +298,9 @@ function PlanDialog({ task, defaultDate, all, onSave, onDelete, onClose }: { tas
       from: travel ? from.trim() || undefined : undefined,
       destination: travel ? destination.trim() : undefined,
       returnDate: travel && returnDate ? returnDate : undefined,
-    });
+      seriesId: task?.seriesId,
+    };
+    onSave(weeks > 1 ? repeatWeekly(made, weeks) : [made]);
   };
 
   return (
@@ -359,6 +366,22 @@ function PlanDialog({ task, defaultDate, all, onSave, onDelete, onClose }: { tas
             </div>
           </div>
 
+          {!task && !travel && (
+            <div className="space-y-1.5">
+              <Label htmlFor="plan-repeat">Repeat</Label>
+              <Select value={repeat} onValueChange={setRepeat}>
+                <SelectTrigger id="plan-repeat"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Does not repeat</SelectItem>
+                  <SelectItem value="4">Every week for 4 weeks</SelectItem>
+                  <SelectItem value="8">Every week for 8 weeks</SelectItem>
+                  <SelectItem value="12">Every week for 12 weeks</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {task?.seriesId && <p className="text-xs text-muted-foreground">Part of a weekly series. Changes here apply to this plan only.</p>}
+
           <div className="space-y-1.5">
             <Label htmlFor="plan-notes">Notes <span className="text-muted-foreground">(optional)</span></Label>
             <Textarea id="plan-notes" maxLength={500} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={travel ? "Flight number, hotel, packing…" : "Anything to remember"} />
@@ -369,8 +392,9 @@ function PlanDialog({ task, defaultDate, all, onSave, onDelete, onClose }: { tas
           <DialogFooter className="items-center gap-2 sm:justify-between">
             {task ? (
               confirming ? (
-                <div className="flex items-center gap-1">
-                  <Button type="button" variant="ghost" className="text-destructive" onClick={() => onDelete(task.id)}>Yes, delete</Button>
+                <div className="flex flex-wrap items-center gap-1">
+                  <Button type="button" variant="ghost" className="text-destructive" onClick={() => onDelete(task.id, "one")}>{task.seriesId ? "Delete this one" : "Yes, delete"}</Button>
+                  {task.seriesId && <Button type="button" variant="ghost" className="text-destructive" onClick={() => onDelete(task.id, "following")}>This and later ones</Button>}
                   <Button type="button" variant="ghost" onClick={() => setConfirming(false)}>Keep</Button>
                 </div>
               ) : (

@@ -2,9 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { addDays, format, startOfWeek } from "date-fns";
 import { motion, useReducedMotion } from "framer-motion";
 import { Bar as RBar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Check, Flame, Sparkles, TrendingUp } from "lucide-react";
+import { Check, Flame, Plane, Sparkles, TrendingUp } from "lucide-react";
 import { useRise } from "@/lib/store";
-import { colorVar, currentStreak, dayCompletion, dayKey, dreamProgress, isDone, isScheduled, taskScore, weeklyScore } from "@/lib/rise";
+import { colorVar, currentStreak, dayCompletion, dayKey, dreamProgress, isDone, isScheduled, plansOn, taskScore, travelLine, weekKey, weeklyScore } from "@/lib/rise";
 import { Heatmap, Panel, ProgressRing, tooltipStyle } from "@/components/rise/visuals";
 
 import { EmptyState } from "@/components/rise/EmptyState";
@@ -54,8 +54,9 @@ function Dashboard() {
     return { day: format(d, "MMM d"), value: dayCompletion(state, d) ?? 0 };
   });
   const active = state.dreams.filter((d) => !d.achieved);
-  const dreamsAvg = state.dreams.length ? Math.round(state.dreams.reduce((a, d) => a + dreamProgress(d), 0) / state.dreams.length) : 0;
+  const dreamsAvg = state.dreams.length ? Math.round(state.dreams.reduce((a, d) => a + dreamProgress(d, state, today), 0) / state.dreams.length) : 0;
   const todayTasks = state.tasks.filter((t) => t.date === tk).sort((a, b) => a.time.localeCompare(b.time));
+  const trips = plansOn(state.tasks, tk).filter((p) => p.continued).map((p) => p.task);
 
   const toggleHabit = (id: string) =>
     update((s) => {
@@ -78,6 +79,13 @@ function Dashboard() {
         <h1 className="mt-1 text-3xl font-semibold sm:text-5xl">{greet}.</h1>
         <p className="mt-2 font-serif text-lg italic text-muted-foreground">“{LINES[today.getDay()]}”</p>
       </div>
+
+      {today.getDay() === 0 && !state.reviews[weekKey(today)] && (
+        <Link to="/analytics" className="surface flex items-center justify-between gap-3 p-4 text-sm transition hover:shadow-lift">
+          <span>It's Sunday. Take a minute to review your week.</span>
+          <span className="shrink-0 text-primary">Review →</span>
+        </Link>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {stats.map((s, i) => (
@@ -119,6 +127,12 @@ function Dashboard() {
             Plans <span>{taskScore(todayTasks)}%</span>
           </div>
           <div className="space-y-1">
+            {trips.map((t) => (
+              <Link key={t.id} to="/plans" className="flex items-center gap-3 rounded-xl bg-muted/50 p-2 text-sm transition hover:bg-muted">
+                <Plane className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 break-words">{t.title}<span className="block text-xs text-muted-foreground">{travelLine(t)}</span></span>
+              </Link>
+            ))}
             {todayTasks.map((t) => (
               <button key={t.id} onClick={() => toggleTask(t.id)} className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-muted">
                 <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 ${t.done ? "border-primary bg-primary" : "border-border"}`}>
@@ -128,7 +142,7 @@ function Dashboard() {
                 <span className={`min-w-0 flex-1 break-words text-sm ${t.done ? "text-muted-foreground line-through" : ""}`}>{t.title}</span>
               </button>
             ))}
-            {!todayTasks.length && <EmptyState message="No plans yet. Make space for your first task." label="Add plan" to="/plans" />}
+            {!todayTasks.length && !trips.length && <EmptyState message="No plans yet. Make space for your first task." label="Add plan" to="/plans" />}
           </div>
         </Panel>
 
@@ -178,7 +192,7 @@ function Dashboard() {
           <div className="grid grid-cols-2 gap-4">
             {state.dreams.slice(0, 4).map((d, i) => (
               <div key={d.id} className="flex flex-col items-center gap-2 text-center">
-                <ProgressRing value={dreamProgress(d)} size={76} stroke={7} color={`var(--chart-${(i % 5) + 1})`} />
+                <ProgressRing value={dreamProgress(d, state, today)} size={76} stroke={7} color={`var(--chart-${(i % 5) + 1})`} />
                 <span className="line-clamp-1 text-xs text-muted-foreground">{d.title}</span>
               </div>
             ))}

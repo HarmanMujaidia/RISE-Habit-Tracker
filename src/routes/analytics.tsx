@@ -7,6 +7,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRise } from "@/lib/store";
 import { earnedBadges, bestStreak, colorVar, currentStreak, dayCompletion, dayKey, dreamProgress, taskScore } from "@/lib/rise";
 import { PageHeader, Panel, tooltipStyle } from "@/components/rise/visuals";
+import { WeeklyReview } from "@/components/rise/WeeklyReview";
+import { MonthCalendar } from "@/components/rise/MonthCalendar";
 
 import { EmptyState } from "@/components/rise/EmptyState";
 
@@ -83,6 +85,8 @@ function AnalyticsPage() {
 
       {!state.habits.length && !state.tasks.length && !state.dreams.length && <EmptyState message="No activity yet. Your insights will grow with your progress." label="Add habit" to="/habits" />}
 
+      <div className="mb-6 grid gap-6 lg:grid-cols-2"><WeeklyReview /><MonthCalendar /></div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Habits over time">
           {!state.habits.length && <EmptyState message="No habits yet." label="Add habit" to="/habits" />}
@@ -133,7 +137,7 @@ function AnalyticsPage() {
             </div>
             <div className="space-y-3">
               <div><div className="font-serif text-4xl">{achieved}</div><div className="text-sm text-muted-foreground">achieved of {state.dreams.length}</div></div>
-              <div className="text-sm text-muted-foreground">Avg progress <span className="font-medium text-foreground">{state.dreams.length ? Math.round(state.dreams.reduce((a, d) => a + dreamProgress(d), 0) / state.dreams.length) : 0}%</span></div>
+              <div className="text-sm text-muted-foreground">Avg progress <span className="font-medium text-foreground">{state.dreams.length ? Math.round(state.dreams.reduce((a, d) => a + dreamProgress(d, state, today), 0) / state.dreams.length) : 0}%</span></div>
               <div className="text-sm text-muted-foreground">Task rate <span className="font-medium text-foreground">{taskScore(allTasks)}%</span></div>
             </div>
           </div>

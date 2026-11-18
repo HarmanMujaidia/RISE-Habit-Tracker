@@ -17,6 +17,9 @@ import { LoadingSkeleton } from "@/components/rise/LoadingSkeleton";
 import { StoreProvider } from "@/lib/store";
 import { AuthProvider } from "@/lib/auth";
 import { AuthGate } from "@/components/rise/AuthScreen";
+import { ReminderRunner } from "@/components/rise/Reminders";
+import { Toaster } from "@/components/ui/sonner";
+import { RegisterSW } from "@/components/rise/RegisterSW";
 
 function NotFoundComponent() {
   return (
@@ -133,10 +136,13 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <RegisterSW />
+      <Toaster position="bottom-center" offset={88} />
       <MotionConfig reducedMotion="user" transition={{ duration: 0.22, ease: "easeOut" }}>
         <AuthProvider>
           <AuthGate>
             <StoreProvider>
+              <ReminderRunner />
               <AppShell>
                 <Outlet />
               </AppShell>

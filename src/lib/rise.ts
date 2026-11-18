@@ -29,6 +29,8 @@ export interface Task {
   destination?: string | undefined;
   /** Travel only: the last day of the trip. Empty or missing means a one-day or one-way plan. */
   returnDate?: string | undefined;
+  /** Shared by every plan created together with "Repeat weekly". */
+  seriesId?: string | undefined;
 }
 export interface Milestone {
   id: string;
@@ -45,12 +47,16 @@ export interface Dream {
   milestones: Milestone[];
   achieved: boolean;
   achievedAt?: string | undefined;
+  /** Habits that move this dream forward. Ids of deleted habits are ignored. */
+  habitIds?: string[] | undefined;
 }
 export interface RiseState {
   habits: Habit[];
   logs: Record<string, string[]>;
   tasks: Task[];
   dreams: Dream[];
+  /** One-line reflections, keyed by the Monday of the week they are about. */
+  reviews: Record<string, string>;
 }
 
 export const HABIT_COLORS: HabitColor[] = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"];
@@ -92,6 +98,22 @@ export function plansOn(tasks: Task[], k: string) {
     .filter((t) => t.date === k || (t.date < k && k <= planEnd(t)))
     .map((task) => ({ task, continued: task.date !== k }))
     .sort((a, b) => Number(a.continued === b.continued ? 0 : a.continued ? -1 : 1) || a.task.time.localeCompare(b.task.time));
+}
+
+/** Copies of a plan on the same weekday for the next `weeks` weeks (the first copy is the plan itself). */
+export function repeatWeekly(base: Task, weeks: number): Task[] {
+  const seriesId = uid();
+  return Array.from({ length: weeks }, (_, i) => ({ ...base, id: i === 0 ? base.id : uid(), date: dayKey(addDays(parseISO(base.date), i * 7)), seriesId }));
+}
+
+const shortDay = (k: string) => format(parseISO(k), "MMM d");
+
+/** "Dubai → Delhi · back Nov 22" for a travel plan; empty for everything else. */
+export function travelLine(t: Task) {
+  if (planKind(t) !== "travel") return "";
+  const route = [t.from, t.destination].filter(Boolean).join(" → ");
+  const back = t.returnDate && t.returnDate > t.date ? `back ${shortDay(t.returnDate)}` : "";
+  return [route, back].filter(Boolean).join(" · ");
 }
 
 /** Returns a message when a plan can't be saved, or an empty string. */
@@ -172,10 +194,20 @@ export function dayCompletion(state: RiseState, d: Date) {
   return Math.round((done / sched.length) * 100);
 }
 
-export function dreamProgress(d: Dream) {
+/** Habits linked to a dream that still exist. */
+export const linkedHabits = (d: Dream, habits: Habit[]) => habits.filter((h) => d.habitIds?.includes(h.id));
+
+/**
+ * How far along a dream is: milestones done, and the last 30 days of its linked habits.
+ * When it has both, the two count equally. A dream marked achieved is 100.
+ */
+export function dreamProgress(d: Dream, state?: Pick<RiseState, "habits" | "logs">, today = new Date()) {
   if (d.achieved) return 100;
-  if (!d.milestones.length) return 0;
-  return Math.round((d.milestones.filter((m) => m.done).length / d.milestones.length) * 100);
+  const parts: number[] = [];
+  if (d.milestones.length) parts.push((d.milestones.filter((m) => m.done).length / d.milestones.length) * 100);
+  const habits = state ? linkedHabits(d, state.habits) : [];
+  if (state && habits.length) parts.push(habits.reduce((a, h) => a + completionRate(h, state.logs, 30, today), 0) / habits.length);
+  return parts.length ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : 0;
 }
 
 export function taskScore(tasks: Task[]) {
@@ -189,8 +221,30 @@ export function weeklyScore(state: RiseState, today = new Date()) {
   return values.length ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : 0;
 }
 
+/** The Monday that starts the week containing `d`, as a day key. */
+export const weekKey = (d: Date) => dayKey(startOfWeek(d, { weekStartsOn: 1 }));
+
+/** Numbers for one Monday-to-Sunday week. Days after `today` are left out. */
+export function weekSummary(state: RiseState, weekStart: Date, today = new Date()) {
+  const end = dayKey(addDays(weekStart, 6));
+  const start = dayKey(weekStart);
+  const last = dayKey(today) < end ? today : addDays(weekStart, 6);
+  const days = Array.from({ length: Math.max(0, differenceInCalendarDays(last, weekStart) + 1) }, (_, i) => addDays(weekStart, i));
+  const values = days.map((d) => dayCompletion(state, d)).filter((v): v is number => v !== null);
+  const inWeek = state.tasks.filter((t) => t.date >= start && t.date <= end && t.date <= dayKey(today));
+  return {
+    habitPct: values.length ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : 0,
+    perfectDays: values.filter((v) => v === 100).length,
+    streak: Math.max(0, ...state.habits.map((h) => currentStreak(h, state.logs, last))),
+    plansDone: inWeek.filter((t) => t.done).length,
+    plansTotal: inWeek.length,
+    trips: state.tasks.filter((t) => planKind(t) === "travel" && t.date >= start && t.date <= end).length,
+    hasActivity: values.length > 0 || inWeek.length > 0,
+  };
+}
+
 export function emptyState(): RiseState {
-  return { habits: [], logs: {}, tasks: [], dreams: [] };
+  return { habits: [], logs: {}, tasks: [], dreams: [], reviews: {} };
 }
 
 export function earnedBadges(state: RiseState, today = new Date()) {

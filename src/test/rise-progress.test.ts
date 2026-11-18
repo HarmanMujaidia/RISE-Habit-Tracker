@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { bestStreak, completionRate, currentStreak, dayCompletion, dreamProgress, earnedBadges, emptyState, taskScore, weeklyScore, millisecondsUntilMidnight, nameError, dayKey, planEnd, planError, plansOn, type Habit, type Task } from "@/lib/rise";
-import { ENTRY_KEY, LEGACY_KEY, loadEntries, parseState, saveEntries } from "@/lib/rise-storage";
+import { bestStreak, completionRate, currentStreak, dayCompletion, dreamProgress, earnedBadges, emptyState, taskScore, weeklyScore, millisecondsUntilMidnight, nameError, dayKey, planEnd, planError, plansOn, repeatWeekly, weekKey, weekSummary, type Habit, type Task } from "@/lib/rise";
+import { dueReminders, loadReminders, defaultReminders } from "@/lib/reminders";
+import { ENTRY_KEY, LEGACY_KEY, exportBackup, loadEntries, parseBackup, parseState, saveEntries } from "@/lib/rise-storage";
 
 const today = new Date(2026, 10, 6, 12);
 const habit: Habit = { id: "real-habit", name: "My habit", icon: "🌿", color: "chart-1", frequency: "daily", createdAt: "2026-11-01" };
@@ -8,7 +9,7 @@ const habit: Habit = { id: "real-habit", name: "My habit", icon: "🌿", color: 
 describe("Real progress only", () => {
   it("starts with no entries, completions or badges and zero scores", () => {
     const s = emptyState();
-    expect(s).toEqual({ habits: [], logs: {}, tasks: [], dreams: [] });
+    expect(s).toEqual({ habits: [], logs: {}, tasks: [], dreams: [], reviews: {} });
     expect(dayCompletion(s, today) ?? 0).toBe(0);
     expect(taskScore(s.tasks)).toBe(0);
     expect(earnedBadges(s, today)).toEqual([]);
@@ -153,5 +154,90 @@ describe("Weekly plans and travel", () => {
     const state = { ...emptyState(), tasks: all };
     expect(parseState(JSON.parse(JSON.stringify(state)))?.tasks).toEqual(all);
     expect(parseState({ ...state, tasks: [{ ...trip, returnDate: "soon" }] })).toBeNull();
+  });
+  it("repeats a plan weekly as separate plans that share a series", () => {
+    const made = repeatWeekly(meeting, 3);
+    expect(made.map((t) => t.date)).toEqual(["2026-11-16", "2026-11-23", "2026-11-30"]);
+    expect(made[0]!.id).toBe("m");
+    expect(new Set(made.map((t) => t.id)).size).toBe(3);
+    expect(new Set(made.map((t) => t.seriesId)).size).toBe(1);
+    expect(made.every((t) => !t.done)).toBe(true);
+  });
+});
+
+describe("Reminders", () => {
+  const h: Habit = { id: "h", name: "Read", icon: "📖", color: "chart-1", frequency: "daily", createdAt: "2026-11-01" };
+  const plan: Task = { id: "p", title: "Call", date: "2026-11-18", time: "15:00", priority: "medium", done: false };
+  const state = { ...emptyState(), habits: [h], tasks: [plan] };
+  const on = { plans: true, evening: true };
+  const at = (hh: number, mm = 0) => new Date(2026, 10, 18, hh, mm);
+  it("announces a plan from 10 minutes before until 30 minutes after, once", () => {
+    expect(dueReminders(state, at(14, 49), on, new Set())).toEqual([]);
+    expect(dueReminders(state, at(14, 50), on, new Set()).map((r) => r.key)).toEqual(["plan:p:2026-11-18"]);
+    expect(dueReminders(state, at(15, 29), on, new Set()).length).toBe(1);
+    expect(dueReminders(state, at(15, 30), on, new Set())).toEqual([]);
+    expect(dueReminders(state, at(14, 55), on, new Set(["plan:p:2026-11-18"]))).toEqual([]);
+  });
+  it("skips finished plans and turned-off reminders", () => {
+    expect(dueReminders({ ...state, tasks: [{ ...plan, done: true }] }, at(14, 55), on, new Set())).toEqual([]);
+    expect(dueReminders(state, at(14, 55), defaultReminders, new Set())).toEqual([]);
+  });
+  it("nudges about open habits only in the evening", () => {
+    expect(dueReminders(state, at(19, 59), { plans: false, evening: true }, new Set())).toEqual([]);
+    expect(dueReminders(state, at(20, 0), { plans: false, evening: true }, new Set())[0]?.body).toBe("Read is still open today.");
+    expect(dueReminders({ ...state, logs: { h: ["2026-11-18"] } }, at(21), { plans: false, evening: true }, new Set())).toEqual([]);
+  });
+  it("ignores broken saved settings", () => {
+    expect(loadReminders({ getItem: () => "{oops" })).toEqual(defaultReminders);
+  });
+});
+
+describe("Backup files", () => {
+  const state = { ...emptyState(), habits: [{ id: "h", name: "Read", icon: "📖", color: "chart-1" as const, frequency: "daily" as const, createdAt: "2026-11-01" }], logs: { h: ["2026-11-02"] } };
+  it("restores exactly what was exported", () => {
+    expect(parseBackup(exportBackup(state))).toEqual(state);
+  });
+  it("accepts a bare state and rejects anything else", () => {
+    expect(parseBackup(JSON.stringify(state))).toEqual(state);
+    expect(parseBackup("not json")).toBeNull();
+    expect(parseBackup(JSON.stringify({ app: "rise", data: { habits: "no" } }))).toBeNull();
+    expect(parseBackup("null")).toBeNull();
+  });
+});
+
+describe("Weekly review", () => {
+  const h: Habit = { id: "h", name: "Read", icon: "📖", color: "chart-1", frequency: "daily", createdAt: "2026-11-01" };
+  const monday = new Date(2026, 10, 16, 12);
+  const task = (id: string, date: string, done: boolean): Task => ({ id, title: id, date, time: "09:00", priority: "low", done });
+  it("finds the Monday of any day in the week", () => {
+    expect(weekKey(new Date(2026, 10, 22, 12))).toBe("2026-11-16");
+    expect(weekKey(monday)).toBe("2026-11-16");
+  });
+  it("summarises only the days that have happened", () => {
+    const state = { ...emptyState(), habits: [h], logs: { h: ["2026-11-16", "2026-11-17"] }, tasks: [task("a", "2026-11-16", true), task("b", "2026-11-17", false), task("c", "2026-11-20", false)] };
+    const sum = weekSummary(state, monday, new Date(2026, 10, 18, 12));
+    expect(sum).toMatchObject({ habitPct: 67, perfectDays: 2, plansDone: 1, plansTotal: 2, trips: 0, hasActivity: true });
+  });
+  it("is empty for a week with nothing in it", () => {
+    expect(weekSummary(emptyState(), monday, new Date(2026, 10, 18, 12))).toMatchObject({ habitPct: 0, plansTotal: 0, hasActivity: false });
+  });
+});
+
+describe("Dreams supported by habits", () => {
+  const h: Habit = { id: "h", name: "Gym", icon: "💪", color: "chart-1", frequency: "daily", createdAt: "2026-11-01" };
+  const dream = { id: "d", title: "Get fit", description: "", category: "health" as const, targetDate: "", cover: "", milestones: [], achieved: false };
+  const today = new Date(2026, 10, 10, 12);
+  const days = ["2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05"];
+  it("ignores habits unless the dream links them", () => {
+    expect(dreamProgress(dream, { habits: [h], logs: { h: days } }, today)).toBe(0);
+  });
+  it("uses the linked habit's last 30 days when there are no milestones", () => {
+    expect(dreamProgress({ ...dream, habitIds: ["h"] }, { habits: [h], logs: { h: days } }, today)).toBe(50);
+  });
+  it("averages milestones and habits, and skips habits that were deleted", () => {
+    const withMilestone = { ...dream, habitIds: ["h"], milestones: [{ id: "m", title: "First 5k", done: true }] };
+    expect(dreamProgress(withMilestone, { habits: [h], logs: { h: days } }, today)).toBe(75);
+    expect(dreamProgress(withMilestone, { habits: [], logs: {} }, today)).toBe(100);
+    expect(dreamProgress({ ...withMilestone, achieved: true }, { habits: [h], logs: {} }, today)).toBe(100);
   });
 });
