@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bestStreak, completionRate, currentStreak, dayCompletion, dreamProgress, earnedBadges, emptyState, taskScore, weeklyScore, millisecondsUntilMidnight, nameError, dayKey, planEnd, planError, plansOn, repeatWeekly, type Habit, type Task } from "@/lib/rise";
+import { dueReminders, loadReminders, defaultReminders } from "@/lib/reminders";
 import { ENTRY_KEY, LEGACY_KEY, loadEntries, parseState, saveEntries } from "@/lib/rise-storage";
 
 const today = new Date(2026, 10, 6, 12);
@@ -161,5 +162,32 @@ describe("Weekly plans and travel", () => {
     expect(new Set(made.map((t) => t.id)).size).toBe(3);
     expect(new Set(made.map((t) => t.seriesId)).size).toBe(1);
     expect(made.every((t) => !t.done)).toBe(true);
+  });
+});
+
+describe("Reminders", () => {
+  const h: Habit = { id: "h", name: "Read", icon: "📖", color: "chart-1", frequency: "daily", createdAt: "2026-11-01" };
+  const plan: Task = { id: "p", title: "Call", date: "2026-11-18", time: "15:00", priority: "medium", done: false };
+  const state = { ...emptyState(), habits: [h], tasks: [plan] };
+  const on = { plans: true, evening: true };
+  const at = (hh: number, mm = 0) => new Date(2026, 10, 18, hh, mm);
+  it("announces a plan from 10 minutes before until 30 minutes after, once", () => {
+    expect(dueReminders(state, at(14, 49), on, new Set())).toEqual([]);
+    expect(dueReminders(state, at(14, 50), on, new Set()).map((r) => r.key)).toEqual(["plan:p:2026-11-18"]);
+    expect(dueReminders(state, at(15, 29), on, new Set()).length).toBe(1);
+    expect(dueReminders(state, at(15, 30), on, new Set())).toEqual([]);
+    expect(dueReminders(state, at(14, 55), on, new Set(["plan:p:2026-11-18"]))).toEqual([]);
+  });
+  it("skips finished plans and turned-off reminders", () => {
+    expect(dueReminders({ ...state, tasks: [{ ...plan, done: true }] }, at(14, 55), on, new Set())).toEqual([]);
+    expect(dueReminders(state, at(14, 55), defaultReminders, new Set())).toEqual([]);
+  });
+  it("nudges about open habits only in the evening", () => {
+    expect(dueReminders(state, at(19, 59), { plans: false, evening: true }, new Set())).toEqual([]);
+    expect(dueReminders(state, at(20, 0), { plans: false, evening: true }, new Set())[0]?.body).toBe("Read is still open today.");
+    expect(dueReminders({ ...state, logs: { h: ["2026-11-18"] } }, at(21), { plans: false, evening: true }, new Set())).toEqual([]);
+  });
+  it("ignores broken saved settings", () => {
+    expect(loadReminders({ getItem: () => "{oops" })).toEqual(defaultReminders);
   });
 });

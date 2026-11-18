@@ -17,6 +17,7 @@ import { LoadingSkeleton } from "@/components/rise/LoadingSkeleton";
 import { StoreProvider } from "@/lib/store";
 import { AuthProvider } from "@/lib/auth";
 import { AuthGate } from "@/components/rise/AuthScreen";
+import { ReminderRunner } from "@/components/rise/Reminders";
 
 function NotFoundComponent() {
   return (
@@ -137,6 +138,7 @@ function RootComponent() {
         <AuthProvider>
           <AuthGate>
             <StoreProvider>
+              <ReminderRunner />
               <AppShell>
                 <Outlet />
               </AppShell>
