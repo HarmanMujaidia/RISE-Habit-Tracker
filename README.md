@@ -22,6 +22,8 @@ Without any setup, Rise saves progress in the browser on one device. To add sign
 4. Under **Authentication > URL Configuration**, set the **Site URL** to your live address and add it (and `http://localhost:3000`) to **Redirect URLs**.
 5. Copy the project URL and anon key from **Project Settings > API** into `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (see `.env.example`). On Vercel, add them under **Project Settings > Environment Variables** and redeploy.
 
+6. (Optional) To make the Google pop-up name your own site instead of the Supabase address, set `VITE_GOOGLE_CLIENT_ID` to the same Google Client ID you gave Supabase, and in Google Cloud > Credentials add your site address under **Authorized JavaScript origins**. Without it, Google sign-in still works through a redirect.
+
 Never put the `service_role` key in this project.
 
 ## Install on a phone

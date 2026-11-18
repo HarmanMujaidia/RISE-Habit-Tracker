@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { LoadingSkeleton } from "@/components/rise/LoadingSkeleton";
 import { LogoTile, Wordmark } from "@/components/rise/Logo";
 import { useAuth } from "@/lib/auth";
+import { googleButtonEnabled, googleClientId } from "@/lib/cloud";
+import { loadGoogleIdentity, makeNonce } from "@/lib/google-identity";
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const { status } = useAuth();
@@ -14,8 +16,53 @@ export function AuthGate({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * Google's own button when a client ID is set. If it cannot load, the redirect button
+ * is shown instead, so signing in with Google never depends on it.
+ */
+function GoogleSignIn({ onError }: { onError: (message: string) => void }) {
+  const { signInGoogle, signInGoogleToken } = useAuth();
+  const holder = useRef<HTMLDivElement>(null);
+  const [failed, setFailed] = useState(!googleButtonEnabled);
+
+  useEffect(() => {
+    if (!googleButtonEnabled) return;
+    let active = true;
+    (async () => {
+      try {
+        const google = await loadGoogleIdentity();
+        const nonce = await makeNonce();
+        if (!active || !holder.current) return;
+        google.initialize({
+          client_id: googleClientId,
+          nonce: nonce.hashed,
+          auto_select: false,
+          ux_mode: "popup",
+          use_fedcm_for_prompt: true,
+          callback: (response) => {
+            if (!response.credential) { onError("Google sign-in did not finish. Please try again."); return; }
+            signInGoogleToken(response.credential, nonce.raw).catch((e: unknown) => onError(e instanceof Error ? e.message : "Google sign-in failed. Please try again."));
+          },
+        });
+        google.renderButton(holder.current, { type: "standard", theme: "outline", size: "large", text: "continue_with", shape: "pill", logo_alignment: "left", width: 280 });
+      } catch {
+        if (active) setFailed(true);
+      }
+    })();
+    return () => { active = false; };
+  }, [signInGoogleToken, onError]);
+
+  if (failed) return <Button type="button" variant="outline" className="w-full" onClick={signInGoogle}>Continue with Google</Button>;
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div ref={holder} className="flex min-h-10 justify-center" />
+      <button type="button" onClick={signInGoogle} className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Pop-up not working? Use the classic Google sign-in</button>
+    </div>
+  );
+}
+
 function AuthScreen() {
-  const { signInGoogle, signInPassword, signUp, error, notice } = useAuth();
+  const { signInPassword, signUp, error, notice } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,7 +95,7 @@ function AuthScreen() {
           <p className="mt-2 text-sm text-muted-foreground">Sign in to keep your habits, plans and dreams in sync on every device.</p>
         </div>
         <div className="rounded-2xl border bg-card p-6 shadow-sm">
-          <Button type="button" variant="outline" className="w-full" onClick={signInGoogle}>Continue with Google</Button>
+          <GoogleSignIn onError={setProblem} />
           <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
             <span className="h-px flex-1 bg-border" />or use email<span className="h-px flex-1 bg-border" />
           </div>

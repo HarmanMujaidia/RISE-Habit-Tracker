@@ -5,6 +5,7 @@ import {
   lookupName,
   readSession,
   signInWithGoogle,
+  signInWithGoogleToken,
   signInWithPassword,
   signOutRemote,
   signUpWithPassword,
@@ -22,6 +23,7 @@ interface AuthCtx {
   error: string;
   notice: string;
   signInGoogle: () => void;
+  signInGoogleToken: (idToken: string, nonce: string) => Promise<void>;
   signInPassword: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -35,6 +37,7 @@ const LOCAL_ONLY: AuthCtx = {
   error: "",
   notice: "",
   signInGoogle: () => {},
+  signInGoogleToken: noop,
   signInPassword: noop,
   signUp: noop,
   signOut: noop,
@@ -74,6 +77,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { active = false; };
   }, []);
 
+  const signInGoogleToken = useCallback(async (idToken: string, nonce: string) => {
+    setError(""); setNotice("");
+    const session = await signInWithGoogleToken(idToken, nonce);
+    setEmail(session.email);
+    setName(session.name ?? "");
+    setStatus("signed-in");
+  }, []);
+
   const signInPassword = useCallback(async (address: string, password: string) => {
     setError(""); setNotice("");
     const session = await signInWithPassword(clean(address), password);
@@ -99,8 +110,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthCtx>(
-    () => ({ status, email, name, error, notice, signInGoogle: signInWithGoogle, signInPassword, signUp, signOut }),
-    [status, email, name, error, notice, signInPassword, signUp, signOut],
+    () => ({ status, email, name, error, notice, signInGoogle: signInWithGoogle, signInGoogleToken, signInPassword, signUp, signOut }),
+    [status, email, name, error, notice, signInGoogleToken, signInPassword, signUp, signOut],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
