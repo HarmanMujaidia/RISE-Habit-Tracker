@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { bestStreak, completionRate, currentStreak, dayCompletion, dreamProgress, earnedBadges, emptyState, taskScore, weeklyScore, millisecondsUntilMidnight, nameError, dayKey, type Habit } from "@/lib/rise";
-import { ENTRY_KEY, LEGACY_KEY, loadEntries, saveEntries } from "@/lib/rise-storage";
+import { bestStreak, completionRate, currentStreak, dayCompletion, dreamProgress, earnedBadges, emptyState, taskScore, weeklyScore, millisecondsUntilMidnight, nameError, dayKey, planEnd, planError, plansOn, type Habit, type Task } from "@/lib/rise";
+import { ENTRY_KEY, LEGACY_KEY, loadEntries, parseState, saveEntries } from "@/lib/rise-storage";
 
 const today = new Date(2026, 10, 6, 12);
 const habit: Habit = { id: "real-habit", name: "My habit", icon: "🌿", color: "chart-1", frequency: "daily", createdAt: "2026-11-01" };
@@ -121,5 +121,37 @@ describe("Stability rules", () => {
     expect(dayCompletion(s, today)).toBeNull();
     expect(weeklyScore(s, today)).toBe(0);
     expect(earnedBadges(s, today)).toEqual([]);
+  });
+});
+describe("Weekly plans and travel", () => {
+  const base = { time: "09:00", priority: "medium" as const, done: false };
+  const meeting: Task = { id: "m", title: "Meeting", date: "2026-11-16", ...base, kind: "meeting" };
+  const trip: Task = { id: "t", title: "Travel to Delhi", date: "2026-11-18", time: "08:00", priority: "high", done: false, kind: "travel", from: "Dubai", destination: "Delhi", returnDate: "2026-11-20" };
+  const legacy: Task = { id: "l", title: "Legacy task", date: "2026-11-19", ...base };
+  const all = [meeting, trip, legacy];
+
+  it("treats older entries without a kind as plain tasks and ends one-day plans on their date", () => {
+    expect(planEnd(legacy)).toBe("2026-11-19");
+    expect(planEnd(meeting)).toBe("2026-11-16");
+    expect(planEnd({ ...trip, returnDate: "2026-11-10" })).toBe("2026-11-18");
+  });
+  it("shows a trip on every day until the return date, with later days marked as continued", () => {
+    expect(plansOn(all, "2026-11-18").map((p) => [p.task.id, p.continued])).toEqual([["t", false]]);
+    expect(plansOn(all, "2026-11-19").map((p) => [p.task.id, p.continued])).toEqual([["t", true], ["l", false]]);
+    expect(plansOn(all, "2026-11-20").map((p) => [p.task.id, p.continued])).toEqual([["t", true]]);
+    expect(plansOn(all, "2026-11-21")).toEqual([]);
+  });
+  it("validates travel plans", () => {
+    const ok = { kind: "travel" as const, date: "2026-11-18", destination: "Delhi", returnDate: "2026-11-20" };
+    expect(planError(ok)).toBe("");
+    expect(planError({ ...ok, returnDate: "" })).toBe("");
+    expect(planError({ ...ok, destination: " " })).toBe("Enter a destination.");
+    expect(planError({ ...ok, returnDate: "2026-11-17" })).toMatch(/before/);
+    expect(planError({ ...ok, kind: "meeting", destination: "" })).toBe("");
+  });
+  it("keeps plan details when saved and reloaded, and still reads older data", () => {
+    const state = { ...emptyState(), tasks: all };
+    expect(parseState(JSON.parse(JSON.stringify(state)))?.tasks).toEqual(all);
+    expect(parseState({ ...state, tasks: [{ ...trip, returnDate: "soon" }] })).toBeNull();
   });
 });

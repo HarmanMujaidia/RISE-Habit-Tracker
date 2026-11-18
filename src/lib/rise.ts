@@ -4,6 +4,7 @@ export type Frequency = "daily" | "weekdays" | "weekends";
 export type HabitColor = "chart-1" | "chart-2" | "chart-3" | "chart-4" | "chart-5";
 export type Priority = "low" | "medium" | "high";
 export type Category = "career" | "health" | "travel" | "finance" | "personal";
+export type PlanKind = "task" | "meeting" | "work" | "travel" | "personal";
 
 export interface Habit {
   id: string;
@@ -20,6 +21,14 @@ export interface Task {
   time: string;
   priority: Priority;
   done: boolean;
+  /** What kind of plan this is. Missing on older entries, which are plain tasks. */
+  kind?: PlanKind | undefined;
+  notes?: string | undefined;
+  /** Travel only. */
+  from?: string | undefined;
+  destination?: string | undefined;
+  /** Travel only: the last day of the trip. Empty or missing means a one-day or one-way plan. */
+  returnDate?: string | undefined;
 }
 export interface Milestone {
   id: string;
@@ -46,6 +55,8 @@ export interface RiseState {
 
 export const HABIT_COLORS: HabitColor[] = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"];
 export const CATEGORIES: Category[] = ["career", "health", "travel", "finance", "personal"];
+export const PLAN_KINDS: PlanKind[] = ["task", "meeting", "work", "travel", "personal"];
+export const PLAN_LABEL: Record<PlanKind, string> = { task: "Task", meeting: "Meeting", work: "Work", travel: "Travel", personal: "Personal" };
 export const colorVar = (c: HabitColor) => `var(--${c})`;
 
 export const dayKey = (d: Date) => format(d, "yyyy-MM-dd");
@@ -62,6 +73,38 @@ export function nameError(name: string, existing: string[]) {
   if (!trimmed) return "Enter a name.";
   if (trimmed.length > 120) return "Use 120 characters or fewer.";
   if (existing.some((n) => n.trim().toLocaleLowerCase() === trimmed.toLocaleLowerCase())) return "That name already exists.";
+  return "";
+}
+
+export const planKind = (t: Task): PlanKind => t.kind ?? "task";
+
+/** The last day a plan covers. Only travel plans with a later return date span more than one day. */
+export function planEnd(t: Task) {
+  return planKind(t) === "travel" && t.returnDate && t.returnDate > t.date ? t.returnDate : t.date;
+}
+
+/**
+ * Plans shown on a day: those that start on it, plus trips still under way.
+ * `continued` marks the later days of a trip; scores only ever count the start day.
+ */
+export function plansOn(tasks: Task[], k: string) {
+  return tasks
+    .filter((t) => t.date === k || (t.date < k && k <= planEnd(t)))
+    .map((task) => ({ task, continued: task.date !== k }))
+    .sort((a, b) => Number(a.continued === b.continued ? 0 : a.continued ? -1 : 1) || a.task.time.localeCompare(b.task.time));
+}
+
+/** Returns a message when a plan can't be saved, or an empty string. */
+export function planError(p: { kind: PlanKind; date: string; destination: string; returnDate: string }) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(p.date)) return "Pick a date.";
+  if (p.kind !== "travel") return "";
+  if (!p.destination.trim()) return "Enter a destination.";
+  if (p.destination.trim().length > 80) return "Use 80 characters or fewer for the destination.";
+  if (p.returnDate) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(p.returnDate)) return "Pick a valid return date.";
+    if (p.returnDate < p.date) return "The return date can't be before the departure date.";
+    if (differenceInCalendarDays(parseISO(p.returnDate), parseISO(p.date)) > 366) return "Trips can be up to a year long.";
+  }
   return "";
 }
 
